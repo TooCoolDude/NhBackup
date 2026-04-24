@@ -1,0 +1,23 @@
+﻿@page
+@model NhBackup.WebApplication.Pages.BrowseModel
+
+<div class="row mb-4">
+    <div class="col-md-8 mx-auto">
+        <form method="get">
+            <div class="input-group">
+                <input type="text"
+                       class="form-control"
+                       name="SearchTags"
+                       placeholder="Поиск по тегам через пробел"
+                       value="@Model.SearchTags">
+                <button class="btn btn-primary" type="submit">Поиск</button>
+                @if (!string.IsNullOrWhiteSpace(Model.SearchTags))
+                {
+                    <a href="/Browse" class="btn btn-secondary">Сброс</a>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+
+@await Html.PartialAsync("_GalleryGrid", Model.Galleries)

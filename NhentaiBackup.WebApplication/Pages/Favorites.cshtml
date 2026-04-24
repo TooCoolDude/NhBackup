@@ -1,0 +1,23 @@
+﻿@page
+@model NhBackup.WebApplication.Pages.FavoritesModel
+
+<div class="row mb-4">
+    <div class="col-md-8 mx-auto">
+        <form method="get">
+            <div class="input-group">
+                <input type="text"
+                       class="form-control"
+                       name="SearchTags"
+                       placeholder="Поиск по тегам в избранном"
+                       value="@Model.SearchTags">
+                <button class="btn btn-primary" type="submit">Поиск</button>
+                @if (!string.IsNullOrWhiteSpace(Model.SearchTags))
+                {
+                    <a href="/Favorites" class="btn btn-secondary">Сброс</a>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+
+@await Html.PartialAsync("_GalleryGrid", Model.Galleries)

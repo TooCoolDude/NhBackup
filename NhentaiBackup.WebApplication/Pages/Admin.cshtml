@@ -1,0 +1,21 @@
+﻿@page
+@model NhBackup.WebApplication.Pages.AdminModel
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@{
+    ViewData["Title"] = "Admin Panel";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4>Админ-панель</h4>
+            </div>
+            <div class="card-body">
+                <p>Добро пожаловать, администратор!</p>
+                <p>Здесь будет управление контентом</p>
+            </div>
+        </div>
+    </div>
+</div>

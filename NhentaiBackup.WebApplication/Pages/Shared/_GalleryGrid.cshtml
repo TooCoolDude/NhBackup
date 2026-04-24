@@ -1,0 +1,32 @@
+﻿@using NhBackup.WebApplication.Db
+@model List<Gallery>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info text-center">
+        Ничего не найдено
+    </div>
+}
+else
+{
+    <div class="row">
+        @foreach (var gallery in Model)
+        {
+            <div class="col-md-3 mb-4">
+                <div class="card h-100">
+                    <img src="/downloads/@gallery.Id/cover.jpg"
+                         class="card-img-top"
+                         style="height: 200px; object-fit: cover;"
+                         onerror="this.src='https://via.placeholder.com/200x200?text=No+Cover'">
+                    <div class="card-body">
+                        <h6 class="card-title">@(gallery.EnglishTitle ?? gallery.Id.ToString())</h6>
+                        <p class="card-text small text-muted">
+                            Страниц: @gallery.NumPages
+                        </p>
+                        <a href="/Gallery/@gallery.Id" class="btn btn-sm btn-primary">Просмотр</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

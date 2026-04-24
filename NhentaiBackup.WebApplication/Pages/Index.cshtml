@@ -1,0 +1,26 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">NHentai Backup</h1>
+
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-6">
+            <form method="get" action="/Browse">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" name="SearchTags" placeholder="enter some tags">
+                    <button class="btn btn-primary" type="submit">Search</button>
+                </div>
+            </form>
+
+            <p><a href="/Browse">or browse all posts</a></p>
+
+            <p class="mt-4 text-muted">
+                @Model.TotalPosts posts
+            </p>
+        </div>
+    </div>
+</div>
