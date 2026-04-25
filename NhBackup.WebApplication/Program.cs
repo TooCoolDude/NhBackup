@@ -5,12 +5,15 @@ using Microsoft.Extensions.Options;
 using NhBackup.WebApplication.Db;
 using NhBackup.WebApplication.Options;
 using NhentaiBackup.WebApplication;
+using System.Text;
 using static Microsoft.IO.RecyclableMemoryStreamManager;
 
 internal class Program
 {
     private static void Main(string[] args)
     {
+        Console.OutputEncoding = Encoding.UTF8;
+
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
