@@ -85,7 +85,7 @@ namespace NhentaiBackup.WebApplication
                     var mediaPaths = await DownloadGalleryMedia(fullGallery);
                     if (mediaPaths == null)
                     {
-                        Console.WriteLine($"Не удалось загрузить медиа, пропускаем: {galleryId} - {item.EnglishTitle}");
+                        Console.WriteLine($"Not able to download media, skipping: {galleryId} - {item.EnglishTitle}");
                         continue;
                     }
 
@@ -105,10 +105,10 @@ namespace NhentaiBackup.WebApplication
                     };
                     await db.Galleries.AddAsync(gallery);
                     added++;
-                    Console.WriteLine($"✅ Добавлена: {galleryId} - {gallery.EnglishTitle}");
+                    Console.WriteLine($"✅ Added: {galleryId} - {gallery.EnglishTitle}");
                 }
 
-                // Добавляем новые теги
+                // Add new tags
                 if (item.TagIds != null && item.TagIds.Any())
                 {
                     foreach (var tagId in item.TagIds.Where(id => id.HasValue).Select(id => id.Value))
@@ -142,7 +142,7 @@ namespace NhentaiBackup.WebApplication
                 if (!isNew && tagsAdded)
                 {
                     updated++;
-                    Console.WriteLine($"🔄 Добавлены новые теги: {galleryId}");
+                    Console.WriteLine($"🔄 Added new tags: {galleryId}");
                 }
                 else if (!isNew && !tagsAdded)
                 {
@@ -153,10 +153,10 @@ namespace NhentaiBackup.WebApplication
             }
 
 
-            Console.WriteLine($"\n=== Готово ===");
-            Console.WriteLine($"Добавлено: {added}");
-            Console.WriteLine($"Обновлено: {updated}");
-            Console.WriteLine($"Всего в БД: {await db.Galleries.CountAsync()}");
+            Console.WriteLine($"\n=== Done ===");
+            Console.WriteLine($"Added: {added}");
+            Console.WriteLine($"Updated: {updated}");
+            Console.WriteLine($"Total in DB: {await db.Galleries.CountAsync()}");
         }
 
         private async Task LoadTagNamesAndTypes(NhDbContext db, ApiClient client, List<int> ids)
@@ -199,7 +199,7 @@ namespace NhentaiBackup.WebApplication
                 if (data?.Result == null || data.Result.Count == 0) break;
 
                 all.AddRange(data.Result);
-                Console.WriteLine($"Страница {page}: {data.Result.Count} (всего {all.Count})");
+                Console.WriteLine($"Page {page}: {data.Result.Count} (Total {all.Count})");
 
                 page++;
                 await Task.Delay(6000);
@@ -238,7 +238,7 @@ namespace NhentaiBackup.WebApplication
             {
                 Directory.CreateDirectory(galleryFolder);
 
-                // Скачиваем обложку
+                // Download cover
                 //if (!string.IsNullOrEmpty(gallery.Cover?.Path))
                 //{
                 //    var coverPath = gallery.Cover.Path;
@@ -256,13 +256,13 @@ namespace NhentaiBackup.WebApplication
                 //            try
                 //            {
                 //                await DownloadFile(coverUrl, coverFile);
-                //                Console.WriteLine($"  📸 Обложка: {galleryId}");
+                //                Console.WriteLine($"  📸 Cover: {galleryId}");
                 //                success = true;
                 //                break;
                 //            }
                 //            catch (Exception ex)
                 //            {
-                //                Console.WriteLine($"  ❌ Ошибка обложки {galleryId}: {ex.Message}");
+                //                Console.WriteLine($"  ❌ Error downloading cover {galleryId}: {ex.Message}");
                 //            }
                 //        }
                 //    }
@@ -272,7 +272,7 @@ namespace NhentaiBackup.WebApplication
                 //    }
                 //}
 
-                // Скачиваем страницы
+                // Download pages
                 if (gallery.Pages != null && gallery.Pages.Count > 0)
                 {
                     int successCount = 0;
@@ -300,7 +300,7 @@ namespace NhentaiBackup.WebApplication
                                 }
                                 catch (Exception ex)
                                 {
-                                    Console.WriteLine($"  ❌ Ошибка страницы {i + 1} {galleryId}: {ex.Message}");
+                                    Console.WriteLine($"  ❌ Error downloading page {i + 1} {galleryId}: {ex.Message}");
                                 }
                             }
                         }
@@ -309,7 +309,7 @@ namespace NhentaiBackup.WebApplication
                             successCount++;
                         }
                     }
-                    Console.WriteLine($"  📄 Страницы: {galleryId} ({successCount}/{gallery.Pages.Count})");
+                    Console.WriteLine($"  📄 Pages: {galleryId} ({successCount}/{gallery.Pages.Count})");
 
                     if (successCount == gallery.Pages.Count)
                         return loadedMedia;
@@ -317,7 +317,7 @@ namespace NhentaiBackup.WebApplication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  ❌ Критическая ошибка при скачивании галереи {galleryId}: {ex.Message}");
+                Console.WriteLine($"  ❌ Critical error downloading gallery {galleryId}: {ex.Message}");
             }
 
             return null;
@@ -340,11 +340,11 @@ namespace NhentaiBackup.WebApplication
             }
             catch (TaskCanceledException)
             {
-                throw new Exception($"Таймаут при загрузке {url}");
+                throw new Exception($"Timeout downloading {url}");
             }
             catch (HttpRequestException ex)
             {
-                throw new Exception($"HTTP ошибка: {ex.Message}");
+                throw new Exception($"HTTP error downloading {url}: {ex.Message}");
             }
         }
     }

@@ -5,7 +5,7 @@
 }
 
 <style>
-    /* Стили только для этой страницы */
+    /* Current page styles */
     #fullscreenModal .btn {
         transition: all 0.3s ease;
     }
@@ -36,7 +36,7 @@
 </style>
 
 <div class="row">
-    <!-- Левая панель с тегами -->
+    <!-- Left panel with tags -->
     <div class="col-md-3">
         <div class="card">
             <img src="@Model.PageImages.FirstOrDefault()"
@@ -50,16 +50,16 @@
                 {
                     <p class="text-muted">@Model.Gallery.JapaneseTitle</p>
                 }
-                <!-- Кнопка избранного -->
+                <!-- Favorite button -->
                 <div class="d-grid gap-2 mb-3">
                     <button id="favoriteBtn" class="btn @(Model.Gallery.IsFavorite ? "btn-warning" : "btn-outline-warning")">
                         <i class="bi @(Model.Gallery.IsFavorite ? "bi-star-fill" : "bi-star")"></i>
-                        @(Model.Gallery.IsFavorite ? "В избранном" : "В избранное")
+                        @(Model.Gallery.IsFavorite ? "In Favorites" : "Add to Favorites")
                     </button>
                 </div>
                 <hr />
 
-                <p><strong>Теги:</strong></p>
+                <p><strong>Tags:</strong></p>
                 <div style="max-height: 400px; overflow-y: auto;">
                     @if (Model.Tags != null && Model.Tags.Any())
                     {
@@ -82,7 +82,7 @@
         </div>
     </div>
 
-    <!-- Правая часть - все страницы -->
+    <!-- Right panel - all pages -->
     <div class="col-md-9">
         @foreach (var imagePath in Model.PageImages)
         {
@@ -96,30 +96,30 @@
     </div>
 </div>
 
-<!-- Полноэкранный режим -->
+<!-- Fullscreen mode -->
 <div id="fullscreenModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bs-body-bg); z-index: 9999;">
     <div style="position: relative; height: 100%; display: flex; align-items: center; justify-content: center;">
         <img id="fullscreenImage" src="" style="max-width: 90%; max-height: 90%; object-fit: contain;">
 
-        <!-- Кнопка закрыть -->
+        <!-- Close button -->
         <button id="closeFullscreen" class="btn btn-dark position-absolute top-0 end-0 m-3 rounded-circle d-flex align-items-center justify-content-center"
                 style="width: 40px; height: 40px; opacity: 0.7;">
             <i class="bi bi-x-lg"></i>
         </button>
 
-        <!-- Кнопка назад -->
+        <!-- Previous button -->
         <button id="prevFullscreen" class="btn btn-dark position-absolute start-0 top-50 translate-middle-y ms-3 rounded-circle d-flex align-items-center justify-content-center"
                 style="width: 50px; height: 50px; opacity: 0.7;">
             <i class="bi bi-chevron-left fs-4"></i>
         </button>
 
-        <!-- Кнопка вперед -->
+        <!-- Next button -->
         <button id="nextFullscreen" class="btn btn-dark position-absolute end-0 top-50 translate-middle-y me-3 rounded-circle d-flex align-items-center justify-content-center"
                 style="width: 50px; height: 50px; opacity: 0.7;">
             <i class="bi bi-chevron-right fs-4"></i>
         </button>
 
-        <!-- Счетчик -->
+        <!-- Counter -->
         <div id="counterFullscreen" class="position-absolute bottom-0 start-50 translate-middle-x mb-3 px-3 py-1 rounded-pill bg-dark text-white"
              style="opacity: 0.8; font-size: 14px;">
         </div>
@@ -128,11 +128,11 @@
 
 @section Scripts {
     <script>
-        // Собираем все картинки
+        // Collect all images
         const images = @Html.Raw(Json.Serialize(Model.PageImages));
         let currentIndex = 0;
 
-        // Открыть полноэкранный режим
+        // Open fullscreen mode
         function openFullscreen(index) {
             currentIndex = index;
             const img = document.getElementById('fullscreenImage');
@@ -141,12 +141,12 @@
             updateCounter();
         }
 
-        // Закрыть
+        // Close fullscreen mode
         function closeFullscreen() {
             document.getElementById('fullscreenModal').style.display = 'none';
         }
 
-        // Следующая
+        // Next image
         function nextImage() {
             if (currentIndex < images.length - 1) {
                 currentIndex++;
@@ -155,7 +155,7 @@
             }
         }
 
-        // Предыдущая
+        // Previous image
         function prevImage() {
             if (currentIndex > 0) {
                 currentIndex--;
@@ -164,22 +164,22 @@
             }
         }
 
-        // Обновить счетчик
+        // Update counter
         function updateCounter() {
             document.getElementById('counterFullscreen').textContent = `${currentIndex + 1} / ${images.length}`;
         }
 
-        // Навешиваем обработчики на все картинки
+        // Attach event listeners to all images
         document.querySelectorAll('.gallery-image').forEach((img, idx) => {
             img.addEventListener('click', () => openFullscreen(idx));
         });
 
-        // Кнопки управления
+        // Control buttons
         document.getElementById('closeFullscreen').addEventListener('click', closeFullscreen);
         document.getElementById('prevFullscreen').addEventListener('click', prevImage);
         document.getElementById('nextFullscreen').addEventListener('click', nextImage);
 
-        // Стрелки на клавиатуре
+        // Keyboard arrows
         document.addEventListener('keydown', (e) => {
             const modal = document.getElementById('fullscreenModal');
             if (modal.style.display === 'block') {
@@ -193,7 +193,7 @@
             }
         });
 
-        // Колесо мыши для навигации
+        // Mouse wheel for navigation
         document.getElementById('fullscreenModal').addEventListener('wheel', (e) => {
             if (e.deltaY > 0) {
                 nextImage();
@@ -203,11 +203,11 @@
             e.preventDefault();
         });
 
-                // Кнопка избранного
+                // Favorite button
         const favoriteBtn = document.getElementById('favoriteBtn');
         const galleryId = @Model.Gallery.Id;
 
-        // Функция уведомления
+        // Notification function
         function showNotification(message, isSuccess) {
             const notification = document.createElement('div');
             notification.className = `alert alert-${isSuccess ? 'success' : 'danger'} position-fixed bottom-0 end-0 m-3`;
@@ -230,24 +230,24 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    // Обновляем кнопку
+                    // Update button
                     if (result.isFavorite) {
                         favoriteBtn.className = 'btn btn-warning';
-                        favoriteBtn.innerHTML = '<i class="bi bi-star-fill"></i> В избранном';
+                        favoriteBtn.innerHTML = '<i class="bi bi-star-fill"></i> In Favorites';
                     } else {
                         favoriteBtn.className = 'btn btn-outline-warning';
-                        favoriteBtn.innerHTML = '<i class="bi bi-star"></i> В избранное';
+                        favoriteBtn.innerHTML = '<i class="bi bi-star"></i> Add to Favorites';
                     }
                     showNotification(result.message, true);
                 } else {
-                    showNotification(result.message || 'Ошибка', false);
+                    showNotification(result.message || 'Error', false);
                 }
             } catch (error) {
-                showNotification('Ошибка при выполнении', false);
+                showNotification('Error occurred', false);
             }
         });
 
-        // Кнопка F на клавиатуре
+        // Favorite button shortcut (F key)
         document.addEventListener('keydown', (e) => {
             if (e.key === 'f' || e.key === 'F') {
                 e.preventDefault();
