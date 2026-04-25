@@ -82,7 +82,13 @@ namespace NhentaiBackup.WebApplication
 
                 if (isNew)
                 {
-                    var mediaPaths = await DownloadGalleryMedia(fullGallery);
+                    var downloads = Path.Combine(_options.DatabaseFolder, "downloads");
+                    var galleryFolder = Path.Combine(downloads, galleryId.ToString());
+
+                    // var isTorrentLoaded = await DownloadTorrent(httpClient, galleryFolder, galleryId.ToString());
+                    
+                    var mediaPaths = await DownloadGalleryMedia(fullGallery, galleryFolder);
+                    
                     if (mediaPaths == null)
                     {
                         Console.WriteLine($"Not able to download media, skipping: {galleryId} - {item.EnglishTitle}");
@@ -148,8 +154,6 @@ namespace NhentaiBackup.WebApplication
                 {
                     //Console.WriteLine($"⏭ Без изменений: {galleryId}");
                 }
-
-                //break; //remove after test!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             }
 
 
@@ -203,8 +207,6 @@ namespace NhentaiBackup.WebApplication
 
                 page++;
                 await Task.Delay(6000);
-                if(page > 1)
-                    break; //remove after test!!!!!!!!!!!!!!!
             }
 
             return all;
@@ -224,53 +226,17 @@ namespace NhentaiBackup.WebApplication
             return null;
         }
 
-        private async Task<List<string>> DownloadGalleryMedia(GalleryDetailResponse gallery)
+        private async Task<List<string>> DownloadGalleryMedia(GalleryDetailResponse gallery, string galleryFolder)
         {
             if (gallery.Id == null) return null;
 
             var loadedMedia = new List<string>();
 
             var galleryId = gallery.Id.Value;
-            var downloads = Path.Combine(_options.DatabaseFolder, "downloads");
-            var galleryFolder = Path.Combine(downloads, galleryId.ToString());
 
             try
             {
                 Directory.CreateDirectory(galleryFolder);
-
-                // Download cover
-                //if (!string.IsNullOrEmpty(gallery.Cover?.Path))
-                //{
-                //    var coverPath = gallery.Cover.Path;
-                //    if (!coverPath.StartsWith("/")) coverPath = "/" + coverPath;
-
-                //    var coverFile = Path.Combine(galleryFolder, "cover.jpg");
-
-                //    bool success = false;
-                //    if (!File.Exists(coverFile))
-                //    {
-                //        for (int t = 1; t < 5; t++)
-                //        {
-                //            var coverUrl = $"https://t{t}.nhentai.net{coverPath}";
-
-                //            try
-                //            {
-                //                await DownloadFile(coverUrl, coverFile);
-                //                Console.WriteLine($"  📸 Cover: {galleryId}");
-                //                success = true;
-                //                break;
-                //            }
-                //            catch (Exception ex)
-                //            {
-                //                Console.WriteLine($"  ❌ Error downloading cover {galleryId}: {ex.Message}");
-                //            }
-                //        }
-                //    }
-                //    else
-                //    {
-                //        success = true;
-                //    }
-                //}
 
                 // Download pages
                 if (gallery.Pages != null && gallery.Pages.Count > 0)
@@ -323,7 +289,25 @@ namespace NhentaiBackup.WebApplication
 
             return null;
         }
-
+        private async Task<bool> DownloadTorrent(HttpClient httpClient, string galleryPath, string galleryId)
+        {
+            try
+            {
+                var torrentUrl = $"https://nhentai.net/g/{galleryId}/download";
+                var response = await httpClient.GetAsync(torrentUrl);
+                response.EnsureSuccessStatusCode();
+                var torrentBytes = await response.Content.ReadAsByteArrayAsync();
+                var torrentPath = Path.Combine(galleryPath, $"{galleryId}.torrent");
+                await File.WriteAllBytesAsync(torrentPath, torrentBytes);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  ❌ Error downloading torrent for gallery {galleryId}: {ex.Message}");
+                
+            }
+            return false;
+        }
         private async Task DownloadFile(string url, string path)
         {
             using var http = new HttpClient();
