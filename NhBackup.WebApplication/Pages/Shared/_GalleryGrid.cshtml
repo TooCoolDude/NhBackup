@@ -1,6 +1,27 @@
 ﻿@using NhBackup.WebApplication.Db
 @model List<Gallery>
 
+<style>
+    .card-link {
+        text-decoration: none;
+        color: inherit;
+    }
+
+        .card-link .card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card-link:hover .card {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+    .gallery-img {
+        height: 200px;
+        object-fit: cover;
+    }
+</style>
+
 @if (!Model.Any())
 {
     <div class="alert alert-info text-center">
@@ -13,19 +34,24 @@ else
         @foreach (var gallery in Model)
         {
             <div class="col-md-3 mb-4">
-                <div class="card h-100">
-                    <img src="@gallery.MediaPaths.FirstOrDefault()"
-                         class="card-img-top"
-                         style="height: 200px; object-fit: cover;"
-                         onerror="this.src='https://via.placeholder.com/200x200?text=No+Cover'">
-                    <div class="card-body">
-                        <h6 class="card-title">@(gallery.EnglishTitle ?? gallery.Id.ToString())</h6>
-                        <p class="card-text small text-muted">
-                            Страниц: @gallery.NumPages
-                        </p>
-                        <a href="/Gallery/@gallery.Id" class="btn btn-sm btn-primary">View</a>
+
+                <a href="/Gallery/@gallery.Id" class="card-link">
+                    <div class="card h-100">
+
+                        <img src="@gallery.MediaPaths.FirstOrDefault()"
+                             class="card-img-top gallery-img"
+                             onerror="this.src='https://via.placeholder.com/200x200?text=No+Cover'">
+
+                        <div class="card-body">
+                            <h6 class="card-title">@(gallery.EnglishTitle ?? gallery.Id.ToString())</h6>
+                            <p class="card-text small text-muted">
+                                Pages: @gallery.NumPages
+                            </p>
+                        </div>
+
                     </div>
-                </div>
+                </a>
+
             </div>
         }
     </div>
