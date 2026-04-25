@@ -165,27 +165,34 @@ namespace NhentaiBackup.WebApplication
 
         private async Task LoadTagNamesAndTypes(NhDbContext db, ApiClient client, List<int> ids)
         {
-            var tags = await client.Api.V2.Tags.Ids.GetAsync(config =>
+            try
             {
-                config.QueryParameters.Ids = string.Join(", ", ids);
-            });
-
-            if (tags == null) return;
-
-            foreach (var tag in tags)
-            {
-                if (tag.Id == null) continue;
-
-                var existing = await db.Tags.FindAsync(tag.Id.Value);
-                if (existing != null)
+                var tags = await client.Api.V2.Tags.Ids.GetAsync(config =>
                 {
-                    existing.Name = tag.Name;
-                    existing.Slug = tag.Slug;
-                    existing.Type = tag.Type;
-                }
-            }
+                    config.QueryParameters.Ids = string.Join(", ", ids);
+                });
 
-            await db.SaveChangesAsync();
+                if (tags == null) return;
+
+                foreach (var tag in tags)
+                {
+                    if (tag.Id == null) continue;
+
+                    var existing = await db.Tags.FindAsync(tag.Id.Value);
+                    if (existing != null)
+                    {
+                        existing.Name = tag.Name;
+                        existing.Slug = tag.Slug;
+                        existing.Type = tag.Type;
+                    }
+                }
+
+                await db.SaveChangesAsync();
+            } 
+            catch (Exception e)
+            {
+
+            }
         }
 
         private async Task<List<GalleryListItem>> GetAllFavourites(ApiClient client)
@@ -308,6 +315,7 @@ namespace NhentaiBackup.WebApplication
             }
             return false;
         }
+
         private async Task DownloadFile(string url, string path)
         {
             using var http = new HttpClient();
@@ -330,6 +338,10 @@ namespace NhentaiBackup.WebApplication
             catch (HttpRequestException ex)
             {
                 throw new Exception($"HTTP error downloading {url}: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                throw;
             }
         }
 
