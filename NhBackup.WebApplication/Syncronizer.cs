@@ -82,8 +82,8 @@ namespace NhentaiBackup.WebApplication
 
                 if (isNew)
                 {
-                    var isMediaLoaded = await DownloadGalleryMedia(fullGallery);
-                    if (!isMediaLoaded)
+                    var mediaPaths = await DownloadGalleryMedia(fullGallery);
+                    if (mediaPaths == null)
                     {
                         Console.WriteLine($"Не удалось загрузить медиа, пропускаем: {galleryId} - {item.EnglishTitle}");
                         continue;
@@ -93,6 +93,7 @@ namespace NhentaiBackup.WebApplication
                     {
                         Id = galleryId,
                         MediaId = item.MediaId,
+                        MediaPaths = mediaPaths,
                         EnglishTitle = item.EnglishTitle,
                         JapaneseTitle = GetJapaneseTitle(item.JapaneseTitle),
                         NumPages = item.NumPages ?? 0,
@@ -223,9 +224,11 @@ namespace NhentaiBackup.WebApplication
             return null;
         }
 
-        private async Task<bool> DownloadGalleryMedia(GalleryDetailResponse gallery)
+        private async Task<List<string>> DownloadGalleryMedia(GalleryDetailResponse gallery)
         {
-            if (gallery.Id == null) return false;
+            if (gallery.Id == null) return null;
+
+            var loadedMedia = new List<string>();
 
             var galleryId = gallery.Id.Value;
             var downloads = Path.Combine(_options.DatabaseFolder, "downloads");
@@ -236,38 +239,38 @@ namespace NhentaiBackup.WebApplication
                 Directory.CreateDirectory(galleryFolder);
 
                 // Скачиваем обложку
-                if (!string.IsNullOrEmpty(gallery.Cover?.Path))
-                {
-                    var coverPath = gallery.Cover.Path;
-                    if (!coverPath.StartsWith("/")) coverPath = "/" + coverPath;
+                //if (!string.IsNullOrEmpty(gallery.Cover?.Path))
+                //{
+                //    var coverPath = gallery.Cover.Path;
+                //    if (!coverPath.StartsWith("/")) coverPath = "/" + coverPath;
 
-                    var coverFile = Path.Combine(galleryFolder, "cover.jpg");
+                //    var coverFile = Path.Combine(galleryFolder, "cover.jpg");
 
-                    bool success = false;
-                    if (!File.Exists(coverFile))
-                    {
-                        for (int t = 1; t < 5; t++)
-                        {
-                            var coverUrl = $"https://t{t}.nhentai.net{coverPath}";
+                //    bool success = false;
+                //    if (!File.Exists(coverFile))
+                //    {
+                //        for (int t = 1; t < 5; t++)
+                //        {
+                //            var coverUrl = $"https://t{t}.nhentai.net{coverPath}";
 
-                            try
-                            {
-                                await DownloadFile(coverUrl, coverFile);
-                                Console.WriteLine($"  📸 Обложка: {galleryId}");
-                                success = true;
-                                break;
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine($"  ❌ Ошибка обложки {galleryId}: {ex.Message}");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        success = true;
-                    }
-                }
+                //            try
+                //            {
+                //                await DownloadFile(coverUrl, coverFile);
+                //                Console.WriteLine($"  📸 Обложка: {galleryId}");
+                //                success = true;
+                //                break;
+                //            }
+                //            catch (Exception ex)
+                //            {
+                //                Console.WriteLine($"  ❌ Ошибка обложки {galleryId}: {ex.Message}");
+                //            }
+                //        }
+                //    }
+                //    else
+                //    {
+                //        success = true;
+                //    }
+                //}
 
                 // Скачиваем страницы
                 if (gallery.Pages != null && gallery.Pages.Count > 0)
@@ -278,7 +281,9 @@ namespace NhentaiBackup.WebApplication
                         var pagePath = gallery.Pages[i].Path;
                         if (!pagePath.StartsWith("/")) pagePath = "/" + pagePath;
 
-                        var pageFile = Path.Combine(galleryFolder, $"{i + 1}.jpg");
+                        var fileName = Path.GetFileName(pagePath);
+
+                        var pageFile = Path.Combine(galleryFolder, fileName);
 
                         if (!File.Exists(pageFile))
                         {
@@ -289,6 +294,7 @@ namespace NhentaiBackup.WebApplication
                                 try
                                 {
                                     await DownloadFile(pageUrl, pageFile);
+                                    loadedMedia.Add($"/downloads/{gallery.Id}/{Path.GetFileName(fileName)}");
                                     successCount++;
                                     break;
                                 }
@@ -306,7 +312,7 @@ namespace NhentaiBackup.WebApplication
                     Console.WriteLine($"  📄 Страницы: {galleryId} ({successCount}/{gallery.Pages.Count})");
 
                     if (successCount == gallery.Pages.Count)
-                        return true;
+                        return loadedMedia;
                 }
             }
             catch (Exception ex)
@@ -314,7 +320,7 @@ namespace NhentaiBackup.WebApplication
                 Console.WriteLine($"  ❌ Критическая ошибка при скачивании галереи {galleryId}: {ex.Message}");
             }
 
-            return false;
+            return null;
         }
 
         private async Task DownloadFile(string url, string path)

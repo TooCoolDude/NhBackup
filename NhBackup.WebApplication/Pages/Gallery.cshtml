@@ -39,7 +39,7 @@
     <!-- Левая панель с тегами -->
     <div class="col-md-3">
         <div class="card">
-            <img src="/downloads/@Model.Gallery.Id/cover.jpg"
+            <img src="@Model.PageImages.FirstOrDefault()"
                  class="card-img-top"
                  onerror="this.src='https://via.placeholder.com/300x400?text=No+Cover'"
                  style="height: 300px; object-fit: cover;">

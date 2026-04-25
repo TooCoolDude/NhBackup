@@ -18,7 +18,7 @@ namespace NhBackup.WebApplication.Pages
 
         public List<Gallery> Galleries { get; set; } = new();
 
-        [BindProperty(SupportsGet = true)]
+        [BindProperty(SupportsGet = true)] //save search query
         public string SearchTags { get; set; }
 
         public async Task OnGetAsync()

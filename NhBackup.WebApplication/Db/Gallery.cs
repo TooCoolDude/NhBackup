@@ -7,6 +7,7 @@ namespace NhBackup.WebApplication.Db
     {
         public int Id { get; set; }
         public string? MediaId { get; set; }
+        public List<string>? MediaPaths { get; set; }
         public string? EnglishTitle { get; set; }
         public string? JapaneseTitle { get; set; }
         public int NumPages { get; set; }

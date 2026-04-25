@@ -14,7 +14,7 @@ else
         {
             <div class="col-md-3 mb-4">
                 <div class="card h-100">
-                    <img src="/downloads/@gallery.Id/cover.jpg"
+                    <img src="@gallery.MediaPaths.FirstOrDefault()"
                          class="card-img-top"
                          style="height: 200px; object-fit: cover;"
                          onerror="this.src='https://via.placeholder.com/200x200?text=No+Cover'">
