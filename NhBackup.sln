@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.37012.4
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NhBackup.WebApplication", "NhentaiBackup.WebApplication\NhBackup.WebApplication.csproj", "{4E7E0DAC-9144-4D3E-AC82-E6B0322DBDA0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NhBackup.WebApplication", "NhBackup.WebApplication\NhBackup.WebApplication.csproj", "{4E7E0DAC-9144-4D3E-AC82-E6B0322DBDA0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
