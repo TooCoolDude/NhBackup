@@ -8,9 +8,9 @@
                 <input type="text"
                        class="form-control"
                        name="SearchTags"
-                       placeholder="Поиск по тегам через пробел"
+                       placeholder="enter some tags"
                        value="@Model.SearchTags">
-                <button class="btn btn-primary" type="submit">Поиск</button>
+                <button class="btn btn-primary" type="submit">Search</button>
                 @if (!string.IsNullOrWhiteSpace(Model.SearchTags))
                 {
                     <a href="/Browse" class="btn btn-secondary">Сброс</a>

@@ -3,11 +3,10 @@
     public class Tag
     {
         public int Id { get; set; }
-        public string? Name { get; set; }      // можно потом заполнить из /tags/{id}
+        public string? Name { get; set; }
         public string? Slug { get; set; }
-        public string? Type { get; set; }      // artist, parody, character и т.д.
+        public string? Type { get; set; }
 
-        // Навигация
         public List<Gallery> Galleries { get; set; } = new();
     }
 }

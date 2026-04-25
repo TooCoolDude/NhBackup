@@ -25,11 +25,9 @@ namespace NhBackup.WebApplication.Db
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Составной ключ для связующей таблицы
             modelBuilder.Entity<GalleryTag>()
                 .HasKey(gt => new { gt.GalleryId, gt.TagId });
 
-            // Индексы
             modelBuilder.Entity<Gallery>()
                 .HasIndex(g => g.Id)
                 .IsUnique();

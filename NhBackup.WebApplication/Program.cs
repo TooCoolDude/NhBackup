@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+п»їusing Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
@@ -81,7 +81,7 @@ internal class Program
         {
             var gallery = await db.Galleries.FindAsync(id);
             if (gallery == null)
-                return Results.Json(new { success = false, message = "Галерея не найдена" });
+                return Results.Json(new { success = false, message = "Error: Gallery not found" });
 
             gallery.IsFavorite = !gallery.IsFavorite;
             await db.SaveChangesAsync();
@@ -90,7 +90,7 @@ internal class Program
             {
                 success = true,
                 isFavorite = gallery.IsFavorite,
-                message = gallery.IsFavorite ? "Добавлено в избранное" : "Удалено из избранного"
+                message = gallery.IsFavorite ? "Added to favorites" : "Deleted from favorites"
             });
         });
 

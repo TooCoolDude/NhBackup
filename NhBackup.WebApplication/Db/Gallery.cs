@@ -16,8 +16,6 @@ namespace NhBackup.WebApplication.Db
         public int ThumbnailHeight { get; set; }
         public bool Blacklisted { get; set; }
         public DateTime SyncedAt { get; set; }
-
-        // Навигация
         public List<Tag> Tags { get; set; } = new();
         public bool IsFavorite { get; set; }
     }
