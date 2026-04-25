@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+ï»¿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -32,21 +32,7 @@ namespace NhBackup.WebApplication.Pages
 
             Tags = await _db.GalleryTags.Where(gt => gt.GalleryId == Gallery.Id).Select(gt => gt.Tag).ToListAsync();
 
-            // Ïóòü ê ïàïêå ñ êàðòèíêàìè
-            var folderPath = Path.Combine(_folderPath, "downloads", id.ToString());
-
-            if (Directory.Exists(folderPath))
-            {
-                var files = Directory.GetFiles(folderPath, "*.jpg")
-                    .Where(f => !Path.GetFileName(f).Contains("cover"))
-                    .OrderBy(f => int.Parse(Path.GetFileNameWithoutExtension(f)))
-                    .ToList();
-
-                foreach (var file in files)
-                {
-                    PageImages.Add($"/downloads/{id}/{Path.GetFileName(file)}");
-                }
-            }
+            PageImages.AddRange(Gallery.MediaPaths);
 
             return Page();
         }

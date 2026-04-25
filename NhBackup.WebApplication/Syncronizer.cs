@@ -48,7 +48,7 @@ namespace NhentaiBackup.WebApplication
         {
             using var httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Add("Authorization", $"Key {_options.ApiKey}");
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "NhentaiBackup/1.0");
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "NhBackup/1.0");
 
             var adapter = new HttpClientRequestAdapter(
                 new AnonymousAuthenticationProvider(),
@@ -149,7 +149,7 @@ namespace NhentaiBackup.WebApplication
                     //Console.WriteLine($"⏭ Без изменений: {galleryId}");
                 }
 
-                break; //remove after test!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                //break; //remove after test!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             }
 
 
@@ -203,8 +203,8 @@ namespace NhentaiBackup.WebApplication
 
                 page++;
                 await Task.Delay(6000);
-
-                break; //remove after test!!!!!!!!!!!!!!!
+                if(page > 1)
+                    break; //remove after test!!!!!!!!!!!!!!!
             }
 
             return all;
@@ -276,12 +276,13 @@ namespace NhentaiBackup.WebApplication
                 if (gallery.Pages != null && gallery.Pages.Count > 0)
                 {
                     int successCount = 0;
+                    var digitsCount = gallery.Pages.Count.ToString().Length;
                     for (int i = 0; i < gallery.Pages.Count; i++)
                     {
                         var pagePath = gallery.Pages[i].Path;
                         if (!pagePath.StartsWith("/")) pagePath = "/" + pagePath;
-
-                        var fileName = Path.GetFileName(pagePath);
+                        
+                        var fileName = NormalizeBeforeDot(Path.GetFileName(pagePath), digitsCount);
 
                         var pageFile = Path.Combine(galleryFolder, fileName);
 
@@ -346,6 +347,27 @@ namespace NhentaiBackup.WebApplication
             {
                 throw new Exception($"HTTP error downloading {url}: {ex.Message}");
             }
+        }
+
+        public static string NormalizeBeforeDot(string input, int totalLength)
+        {
+            if (string.IsNullOrEmpty(input))
+                return input;
+
+            int dotIndex = input.IndexOf('.');
+
+            string numberPart = dotIndex >= 0
+                ? input.Substring(0, dotIndex)
+                : input;
+
+            if (!int.TryParse(numberPart, out var number))
+                return input;
+
+            string normalized = number.ToString($"D{totalLength}");
+
+            return dotIndex >= 0
+                ? normalized + input.Substring(dotIndex)
+                : normalized;
         }
     }
 }
