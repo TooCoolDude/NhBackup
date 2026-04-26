@@ -25,4 +25,15 @@ public static class ApiRateLimiters
             QueueLimit = 1000, // allow waiting
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst
         });
+
+    public static readonly RateLimiter GalleriesApi = new TokenBucketRateLimiter(
+    new TokenBucketRateLimiterOptions
+    {
+        TokenLimit = 45,
+        TokensPerPeriod = 45,
+        ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+        AutoReplenishment = true,
+        QueueLimit = 1000, // allow waiting
+        QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+    });
 }

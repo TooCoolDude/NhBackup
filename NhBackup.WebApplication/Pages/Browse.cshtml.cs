@@ -41,7 +41,6 @@ namespace NhBackup.WebApplication.Pages
 
             Galleries = await query
                 .OrderByDescending(g => g.SyncedAt)
-                .Take(50)
                 .ToListAsync();
         }
     }

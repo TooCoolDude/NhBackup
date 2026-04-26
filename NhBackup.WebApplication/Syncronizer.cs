@@ -50,36 +50,109 @@ namespace NhentaiBackup.WebApplication
             var cdns = await _syncClient.GetCDNs();
             var all = await _syncClient.GetAllFavourites();
 
-            using var scope = _scopeFactory.CreateAsyncScope();
-            using var db = scope.ServiceProvider.GetService<NhDbContext>();
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var db = scope.ServiceProvider.GetRequiredService<NhDbContext>();
 
-            int added = 0;
+            int processed = 0;
+            int created = 0;
             int updated = 0;
+            int brokenMedia = 0;
 
             foreach (var item in all)
             {
-                if (item.Id == null) continue;
+                if (item.Id is null) continue;
 
                 var galleryId = item.Id.Value;
-                GalleryDetailResponse fullGallery = await _syncClient.GetGallery(galleryId);
-                if (fullGallery == null) continue;
+
+                Console.WriteLine($"\n=== {galleryId} ===");
 
                 var existing = await db.Galleries.FindAsync(galleryId);
                 bool isNew = existing == null;
-                bool tagsAdded = false;
 
-                if (isNew)
+                bool isValidInDb = false;
+
+                if (!isNew)
                 {
-                    var downloads = Path.Combine(_options.DatabaseFolder, "downloads");
-                    var galleryFolder = Path.Combine(downloads, galleryId.ToString());
+                    isValidInDb = IsValidGallery(existing);
 
-                    // var isTorrentLoaded = await DownloadTorrent(httpClient, galleryFolder, galleryId.ToString());
+                    // 🔴 КЛЮЧЕВАЯ ДИАГНОСТИКА
+                    if (existing.MediaPaths == null)
+                    {
+                        Console.WriteLine("❌ MediaPaths = NULL");
+                    }
+                    else if (!existing.MediaPaths.Any())
+                    {
+                        Console.WriteLine("❌ MediaPaths = EMPTY");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"MediaPaths count: {existing.MediaPaths.Count}");
+                    }
 
-                    var mediaPaths = await DownloadGalleryMedia(cdns, fullGallery, galleryFolder);
+                    // Доп проверка файлов на диске
+                    if (existing.MediaPaths != null && existing.MediaPaths.Any())
+                    {
+                        var missingFiles = existing.MediaPaths.Where(p => !File.Exists(p)).ToList();
+                        if (missingFiles.Any())
+                        {
+                            Console.WriteLine($"❌ Missing files: {missingFiles.Count}");
+                            isValidInDb = false;
+                        }
+                    }
+                }
 
+                // 🔥 ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА
+                bool needRedownload =
+                    isNew ||
+                    !isValidInDb ||
+                    existing?.MediaPaths == null ||
+                    !existing.MediaPaths.Any();
+
+                if (needRedownload)
+                {
+                    if (!isNew)
+                    {
+                        Console.WriteLine("⚠️ Forcing re-download");
+
+                        db.Galleries.Remove(existing);
+                        await db.SaveChangesAsync();
+                    }
+
+                    var full = await _syncClient.GetGallery(galleryId);
+                    if (full == null)
+                    {
+                        Console.WriteLine("❌ full == null");
+                        continue;
+                    }
+
+                    var galleryFolder = Path.Combine(
+                        _options.DatabaseFolder,
+                        "downloads",
+                        galleryId.ToString());
+
+                    var mediaPaths = await DownloadGalleryMedia(cdns, full, galleryFolder);
+
+                    // 🔴 КРИТИЧЕСКАЯ ПРОВЕРКА
                     if (mediaPaths == null)
                     {
-                        Console.WriteLine($"Not able to download media, skipping: {galleryId} - {item.EnglishTitle}");
+                        Console.WriteLine("❌ mediaPaths == null");
+                        brokenMedia++;
+                        continue;
+                    }
+
+                    if (!mediaPaths.Any())
+                    {
+                        Console.WriteLine("❌ mediaPaths EMPTY после скачивания");
+                        brokenMedia++;
+                        continue;
+                    }
+
+                    // Проверка существования файлов
+                    var notExists = mediaPaths.Where(p => !FileExists(p)).ToList();
+                    if (notExists.Any())
+                    {
+                        Console.WriteLine($"❌ скачали, но файлов нет: {notExists.Count}");
+                        brokenMedia++;
                         continue;
                     }
 
@@ -97,15 +170,25 @@ namespace NhentaiBackup.WebApplication
                         Blacklisted = item.Blacklisted ?? false,
                         SyncedAt = DateTime.UtcNow
                     };
+
                     await db.Galleries.AddAsync(gallery);
-                    added++;
-                    Console.WriteLine($"✅ Added: {galleryId} - {gallery.EnglishTitle}");
+                    await db.SaveChangesAsync();
+
+                    Console.WriteLine($"✅ CREATED with {mediaPaths.Count} files");
+
+                    created++;
+                }
+                else
+                {
+                    Console.WriteLine("OK existing");
                 }
 
-                // Add new tags
-                if (item.TagIds != null && item.TagIds.Any())
+                // --- TAGS ---
+                bool tagsAdded = false;
+
+                if (item.TagIds != null)
                 {
-                    foreach (var tagId in item.TagIds.Where(id => id.HasValue).Select(id => id.Value))
+                    foreach (var tagId in item.TagIds.Where(x => x.HasValue).Select(x => x.Value))
                     {
                         if (!await db.Tags.AnyAsync(t => t.Id == tagId))
                         {
@@ -122,33 +205,55 @@ namespace NhentaiBackup.WebApplication
                                 GalleryId = galleryId,
                                 TagId = tagId
                             });
+
                             tagsAdded = true;
                         }
                     }
                 }
 
-                await db.SaveChangesAsync();
-
-
-                var tagIds = await db.Tags.Select(t => t.Id).ToListAsync();
-                await LoadTagNamesAndTypes(db, tagIds);
-
-                if (!isNew && tagsAdded)
+                if (tagsAdded)
                 {
+                    await db.SaveChangesAsync();
                     updated++;
-                    Console.WriteLine($"🔄 Added new tags: {galleryId}");
+                    Console.WriteLine("🔄 tags updated");
                 }
-                else if (!isNew && !tagsAdded)
-                {
-                    //Console.WriteLine($"⏭ Без изменений: {galleryId}");
-                }
+
+                processed++;
             }
 
+            var tagIds = await db.Tags.Select(t => t.Id).ToListAsync();
+            await LoadTagNamesAndTypes(db, tagIds);
 
-            Console.WriteLine($"\n=== Done ===");
-            Console.WriteLine($"Added: {added}");
+            Console.WriteLine("\n=== DONE ===");
+            Console.WriteLine($"Processed: {processed}");
+            Console.WriteLine($"Created: {created}");
             Console.WriteLine($"Updated: {updated}");
-            Console.WriteLine($"Total in DB: {await db.Galleries.CountAsync()}");
+            Console.WriteLine($"Broken media: {brokenMedia}");
+        }
+
+        private string ToFullPath(string relativePath)
+        {
+            return Path.Combine(
+                _options.DatabaseFolder,
+                relativePath.TrimStart('/'));
+        }
+
+        private bool FileExists(string relativePath)
+        {
+            return File.Exists(ToFullPath(relativePath));
+        }
+
+        private static bool IsValidGallery(Gallery? existing)
+        {
+            if (existing.MediaPaths == null)
+            {
+                return false;
+            }
+            if(existing.NumPages != existing.MediaPaths.Count)
+            {
+                return false;
+            }
+            return true;
         }
 
         private async Task LoadTagNamesAndTypes(NhDbContext db, List<int> ids)
@@ -184,57 +289,106 @@ namespace NhentaiBackup.WebApplication
             await db.SaveChangesAsync();
         }
 
-        private async Task<List<string>> DownloadGalleryMedia(List<string> cdns, GalleryDetailResponse gallery, string galleryFolder)
+        private async Task<List<string>?> DownloadGalleryMedia(
+    List<string> cdns,
+    GalleryDetailResponse gallery,
+    string galleryFolder)
         {
-            if (gallery.Id == null) return null;
-
-            var loadedMedia = new List<string>();
+            if (gallery.Id == null)
+                return null;
 
             var galleryId = gallery.Id.Value;
+            var loadedMedia = new List<string>();
 
             try
             {
                 Directory.CreateDirectory(galleryFolder);
 
-                // Download pages
-                if (gallery.Pages != null && gallery.Pages.Count > 0)
+                if (gallery.Pages == null || gallery.Pages.Count == 0)
                 {
-                    int successCount = 0;
-                    var digitsCount = gallery.Pages.Count.ToString().Length;
-                    for (int i = 0; i < gallery.Pages.Count; i++)
+                    Console.WriteLine($"❌ No pages for {galleryId}");
+                    return null;
+                }
+
+                int total = gallery.Pages.Count;
+                int successCount = 0;
+                int digits = total.ToString().Length;
+
+                for (int i = 0; i < total; i++)
+                {
+                    var pagePath = gallery.Pages[i].Path;
+
+                    if (!pagePath.StartsWith("/"))
+                        pagePath = "/" + pagePath;
+
+                    var fileName = SyncronizerHelpers.NormalizeBeforeDot(
+                        Path.GetFileName(pagePath),
+                        digits);
+
+                    var fullFilePath = Path.Combine(galleryFolder, fileName);
+
+                    bool success = false;
+
+                    // 🔥 скачиваем только если нет файла
+                    if (!File.Exists(fullFilePath))
                     {
-                        var pagePath = gallery.Pages[i].Path;
-                        if (!pagePath.StartsWith("/")) pagePath = "/" + pagePath;
-                        
-                        var fileName = SyncronizerHelpers.NormalizeBeforeDot(Path.GetFileName(pagePath), digitsCount);
-
-                        var pageFile = Path.Combine(galleryFolder, fileName);
-
-                        if (!File.Exists(pageFile))
+                        foreach (var cdn in cdns)
                         {
-                            if(await TryDownloadFileFromMultipleCDN(cdns, gallery, loadedMedia, galleryId, successCount, i, pagePath, fileName, pageFile))
-                                successCount++;
-                        }
-                        else
-                        {
-                            successCount++;
+                            var url = $"{cdn}{pagePath}";
+
+                            try
+                            {
+                                await _syncClient.DownloadFileByUrl(url, fullFilePath);
+
+                                if (File.Exists(fullFilePath))
+                                {
+                                    success = true;
+                                    break;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"❌ CDN fail {cdn} page {i + 1}/{total}: {ex.Message}");
+                            }
                         }
                     }
-                    Console.WriteLine($"  📄 Pages: {galleryId} ({successCount}/{gallery.Pages.Count})");
+                    else
+                    {
+                        success = true;
+                    }
 
-                    if (successCount == gallery.Pages.Count)
-                        return loadedMedia;
+                    if (success)
+                    {
+                        // 🔥 В БД храним RELATIVE path
+                        loadedMedia.Add($"/downloads/{galleryId}/{fileName}");
+                        successCount++;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"❌ FAILED page {i + 1}/{total} ({galleryId})");
+                    }
                 }
+
+                Console.WriteLine($"📄 Pages: {galleryId} ({successCount}/{total})");
+
+                if (successCount != total)
+                    throw new Exception($"Not all pages downloaded: {successCount}/{total}");
+
+                return loadedMedia;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  ❌ Critical error downloading gallery {galleryId}: {ex.Message}");
+                Console.WriteLine($"❌ Critical error gallery {galleryId}: {ex.Message}");
+                return null;
             }
-
-            return null;
         }
 
-        public async Task<bool> TryDownloadFileFromMultipleCDN(List<string> cdns, GalleryDetailResponse gallery, List<string> loadedMedia, int galleryId, int successCount, int i, string pagePath, string fileName, string pageFile)
+        public async Task<bool> TryDownloadFileFromMultipleCDN(
+            List<string> cdns,
+            string pagePath,
+            string pageFile,
+            int galleryId,
+            int pageIndex)
         {
             foreach (var cdn in cdns)
             {
@@ -243,18 +397,16 @@ namespace NhentaiBackup.WebApplication
                 try
                 {
                     await _syncClient.DownloadFileByUrl(pageUrl, pageFile);
-                    loadedMedia.Add($"/downloads/{gallery.Id}/{Path.GetFileName(fileName)}");
-                    successCount++;
                     return true;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"  ❌ Error downloading page {i + 1} {galleryId}: {ex.Message}");                   
+                    Console.WriteLine($"  ❌ Error downloading page {pageIndex + 1} {galleryId}: {ex.Message}");
                 }
             }
             return false;
         }
 
-        
+
     }
 }

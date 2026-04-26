@@ -18,7 +18,7 @@ public class ApiRateLimitHandler : DelegatingHandler
     {
         var endpoint = Normalize(request.RequestUri);
 
-        // 🔴 PRE-CHECK (не идём если лимит исчерпан)
+        // Do not run if limit exceeded
         if (_states.TryGetValue(endpoint, out var state))
         {
             if (state.Remaining <= 0 && state.ResetAt > DateTime.UtcNow)

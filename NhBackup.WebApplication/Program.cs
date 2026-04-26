@@ -1,12 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 using NhBackup.WebApplication.Db;
 using NhBackup.WebApplication.Options;
 using NhentaiBackup.WebApplication;
 using System.Text;
-using static Microsoft.IO.RecyclableMemoryStreamManager;
 
 internal class Program
 {

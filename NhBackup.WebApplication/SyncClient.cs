@@ -43,6 +43,7 @@ public class SyncClient
         }
         return cdnsResponse.ImageServers;
     }
+
     public async Task<List<GalleryListItem>> GetAllFavourites()
     {
         var all = new List<GalleryListItem>();
@@ -66,37 +67,26 @@ public class SyncClient
 
         return all;
     }
-    // Ga
+
     public async Task<GalleryDetailResponse> GetGallery(int galleryId)
     {
+        await ApiRateLimiters.GalleriesApi.AcquireAsync(1);
         return await _apiClient.Api.V2.Galleries[galleryId].GetAsync();
     }
 
     public async Task DownloadFileByUrl(string url, string path)
     {
-        try
-        {
-            var response = await _cdnHttpClient.GetAsync(url);
-            //response.EnsureSuccessStatusCode();
-            if(!response.IsSuccessStatusCode)
-            {
-                Console.WriteLine("TEST");
-            }
-            var bytes = await response.Content.ReadAsByteArrayAsync();
-            await File.WriteAllBytesAsync(path, bytes);
-        }
-        catch (TaskCanceledException)
-        {
-            throw new Exception($"Timeout downloading {url}");
-        }
-        catch (HttpRequestException ex)
-        {
-            throw new Exception($"HTTP error downloading {url}: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            throw;
-        }
+        var response = await _cdnHttpClient.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+        await File.WriteAllBytesAsync(path, bytes);
+
+        if (!File.Exists(path))
+            throw new Exception($"File was not created: {path}");
     }
     public async Task<List<TagResponse>> GetTags(List<int> ids)
     {
@@ -106,7 +96,7 @@ public class SyncClient
         {
             try
             {
-                // await ApiRateLimiters.TagsApi.AcquireAsync(1);
+                await ApiRateLimiters.TagsApi.AcquireAsync(1);
                 var tags = await _apiClient.Api.V2.Tags.Ids.GetAsync(config =>
                 {
                     config.QueryParameters.Ids = string.Join(",", chunk);
