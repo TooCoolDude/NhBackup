@@ -18,6 +18,7 @@ namespace NhentaiBackup.WebApplication
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<Syncronizer> _logger;
         private readonly PeriodicTimer _timer;
+        private readonly SyncClient _syncClient;
 
         public Syncronizer(IOptions<NhSyncronizerOptions> options, IServiceScopeFactory scopeFactory, ILogger<Syncronizer> logger)
         {
@@ -25,7 +26,7 @@ namespace NhentaiBackup.WebApplication
             _scopeFactory = scopeFactory;
             _logger = logger;
             _timer = new(TimeSpan.FromHours(_options.SyncIntevralHours));
-            //_timer = new(TimeSpan.FromSeconds(5));
+            _syncClient = new SyncClient(options);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -46,24 +47,12 @@ namespace NhentaiBackup.WebApplication
 
         public async Task Syncronize()
         {
-            using var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Add("Authorization", $"Key {_options.ApiKey}");
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "NhBackup/1.0");
-
-            var adapter = new HttpClientRequestAdapter(
-                new AnonymousAuthenticationProvider(),
-                httpClient: httpClient
-            );
-            adapter.BaseUrl = "https://nhentai.net";
-
-            var client = new ApiClient(adapter);
-
-            var all = await GetAllFavourites(client);
+            var cdns = await _syncClient.GetCDNs();
+            var all = await _syncClient.GetAllFavourites();
 
             using var scope = _scopeFactory.CreateAsyncScope();
             using var db = scope.ServiceProvider.GetService<NhDbContext>();
-            await db.Database.EnsureCreatedAsync();
-            
+
             int added = 0;
             int updated = 0;
 
@@ -72,8 +61,7 @@ namespace NhentaiBackup.WebApplication
                 if (item.Id == null) continue;
 
                 var galleryId = item.Id.Value;
-
-                var fullGallery = await client.Api.V2.Galleries[galleryId].GetAsync();
+                GalleryDetailResponse fullGallery = await _syncClient.GetGallery(galleryId);
                 if (fullGallery == null) continue;
 
                 var existing = await db.Galleries.FindAsync(galleryId);
@@ -86,9 +74,9 @@ namespace NhentaiBackup.WebApplication
                     var galleryFolder = Path.Combine(downloads, galleryId.ToString());
 
                     // var isTorrentLoaded = await DownloadTorrent(httpClient, galleryFolder, galleryId.ToString());
-                    
-                    var mediaPaths = await DownloadGalleryMedia(fullGallery, galleryFolder);
-                    
+
+                    var mediaPaths = await DownloadGalleryMedia(cdns, fullGallery, galleryFolder);
+
                     if (mediaPaths == null)
                     {
                         Console.WriteLine($"Not able to download media, skipping: {galleryId} - {item.EnglishTitle}");
@@ -101,7 +89,7 @@ namespace NhentaiBackup.WebApplication
                         MediaId = item.MediaId,
                         MediaPaths = mediaPaths,
                         EnglishTitle = item.EnglishTitle,
-                        JapaneseTitle = GetJapaneseTitle(item.JapaneseTitle),
+                        JapaneseTitle = SyncronizerHelpers.GetJapaneseTitle(item.JapaneseTitle),
                         NumPages = item.NumPages ?? 0,
                         Thumbnail = item.Thumbnail,
                         ThumbnailWidth = item.ThumbnailWidth ?? 0,
@@ -143,7 +131,7 @@ namespace NhentaiBackup.WebApplication
 
 
                 var tagIds = await db.Tags.Select(t => t.Id).ToListAsync();
-                await LoadTagNamesAndTypes(db, client, tagIds);
+                await LoadTagNamesAndTypes(db, tagIds);
 
                 if (!isNew && tagsAdded)
                 {
@@ -163,77 +151,40 @@ namespace NhentaiBackup.WebApplication
             Console.WriteLine($"Total in DB: {await db.Galleries.CountAsync()}");
         }
 
-        private async Task LoadTagNamesAndTypes(NhDbContext db, ApiClient client, List<int> ids)
+        private async Task LoadTagNamesAndTypes(NhDbContext db, List<int> ids)
         {
             try
             {
-                var tags = await client.Api.V2.Tags.Ids.GetAsync(config =>
+                var tags = await _syncClient.GetTags(ids);
+                await SaveTagsAsync(db, tags);
+            }
+            catch(Exception ex)
+            {
+                throw;
+            }
+        }
+
+        private async Task SaveTagsAsync(NhDbContext db, List<TagResponse> tags)
+        {
+            foreach (var tag in tags)
+            {
+                if (tag.Id == null)
+                    continue;
+
+                var existing = await db.Tags.FindAsync(tag.Id.Value);
+
+                if (existing != null)
                 {
-                    config.QueryParameters.Ids = string.Join(", ", ids);
-                });
-
-                if (tags == null) return;
-
-                foreach (var tag in tags)
-                {
-                    if (tag.Id == null) continue;
-
-                    var existing = await db.Tags.FindAsync(tag.Id.Value);
-                    if (existing != null)
-                    {
-                        existing.Name = tag.Name;
-                        existing.Slug = tag.Slug;
-                        existing.Type = tag.Type;
-                    }
+                    existing.Name = tag.Name;
+                    existing.Slug = tag.Slug;
+                    existing.Type = tag.Type;
                 }
-
-                await db.SaveChangesAsync();
-            } 
-            catch (Exception e)
-            {
-
-            }
-        }
-
-        private async Task<List<GalleryListItem>> GetAllFavourites(ApiClient client)
-        {
-            var all = new List<GalleryListItem>();
-            int page = 1;
-
-            while (true)
-            {
-                var data = await client.Api.V2.Favorites.GetAsync(config =>
-                {
-                    config.QueryParameters.Page = page;
-                });
-
-                if (data?.Result == null || data.Result.Count == 0) break;
-
-                all.AddRange(data.Result);
-                Console.WriteLine($"Page {page}: {data.Result.Count} (Total {all.Count})");
-
-                page++;
-                await Task.Delay(6000);
             }
 
-            return all;
+            await db.SaveChangesAsync();
         }
 
-        private string GetJapaneseTitle(object jpTitle)
-        {
-            if (jpTitle == null) return null;
-
-            var prop = jpTitle.GetType().GetProperty("String");
-            if (prop != null)
-            {
-                var value = prop.GetValue(jpTitle);
-                return value as string;
-            }
-
-            return null;
-        }
-
-        private async Task<List<string>> DownloadGalleryMedia(GalleryDetailResponse gallery, string galleryFolder)
+        private async Task<List<string>> DownloadGalleryMedia(List<string> cdns, GalleryDetailResponse gallery, string galleryFolder)
         {
             if (gallery.Id == null) return null;
 
@@ -255,28 +206,14 @@ namespace NhentaiBackup.WebApplication
                         var pagePath = gallery.Pages[i].Path;
                         if (!pagePath.StartsWith("/")) pagePath = "/" + pagePath;
                         
-                        var fileName = NormalizeBeforeDot(Path.GetFileName(pagePath), digitsCount);
+                        var fileName = SyncronizerHelpers.NormalizeBeforeDot(Path.GetFileName(pagePath), digitsCount);
 
                         var pageFile = Path.Combine(galleryFolder, fileName);
 
                         if (!File.Exists(pageFile))
                         {
-                            for (int n = 1; n < 5; n++)
-                            {
-                                var pageUrl = $"https://i{n}.nhentai.net{pagePath}";
-
-                                try
-                                {
-                                    await DownloadFile(pageUrl, pageFile);
-                                    loadedMedia.Add($"/downloads/{gallery.Id}/{Path.GetFileName(fileName)}");
-                                    successCount++;
-                                    break;
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.WriteLine($"  ❌ Error downloading page {i + 1} {galleryId}: {ex.Message}");
-                                }
-                            }
+                            if(await TryDownloadFileFromMultipleCDN(cdns, gallery, loadedMedia, galleryId, successCount, i, pagePath, fileName, pageFile))
+                                successCount++;
                         }
                         else
                         {
@@ -296,74 +233,28 @@ namespace NhentaiBackup.WebApplication
 
             return null;
         }
-        private async Task<bool> DownloadTorrent(HttpClient httpClient, string galleryPath, string galleryId)
+
+        public async Task<bool> TryDownloadFileFromMultipleCDN(List<string> cdns, GalleryDetailResponse gallery, List<string> loadedMedia, int galleryId, int successCount, int i, string pagePath, string fileName, string pageFile)
         {
-            try
+            foreach (var cdn in cdns)
             {
-                var torrentUrl = $"https://nhentai.net/g/{galleryId}/download";
-                var response = await httpClient.GetAsync(torrentUrl);
-                response.EnsureSuccessStatusCode();
-                var torrentBytes = await response.Content.ReadAsByteArrayAsync();
-                var torrentPath = Path.Combine(galleryPath, $"{galleryId}.torrent");
-                await File.WriteAllBytesAsync(torrentPath, torrentBytes);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"  ❌ Error downloading torrent for gallery {galleryId}: {ex.Message}");
-                
+                var pageUrl = $"{cdn}{pagePath}";
+
+                try
+                {
+                    await _syncClient.DownloadFileByUrl(pageUrl, pageFile);
+                    loadedMedia.Add($"/downloads/{gallery.Id}/{Path.GetFileName(fileName)}");
+                    successCount++;
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"  ❌ Error downloading page {i + 1} {galleryId}: {ex.Message}");                   
+                }
             }
             return false;
         }
 
-        private async Task DownloadFile(string url, string path)
-        {
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
-            http.DefaultRequestHeaders.Add("Referer", "https://nhentai.net/");
-            http.Timeout = TimeSpan.FromSeconds(30);
-
-            try
-            {
-                var response = await http.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-
-                var bytes = await response.Content.ReadAsByteArrayAsync();
-                await File.WriteAllBytesAsync(path, bytes);
-            }
-            catch (TaskCanceledException)
-            {
-                throw new Exception($"Timeout downloading {url}");
-            }
-            catch (HttpRequestException ex)
-            {
-                throw new Exception($"HTTP error downloading {url}: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
-        }
-
-        public static string NormalizeBeforeDot(string input, int totalLength)
-        {
-            if (string.IsNullOrEmpty(input))
-                return input;
-
-            int dotIndex = input.IndexOf('.');
-
-            string numberPart = dotIndex >= 0
-                ? input.Substring(0, dotIndex)
-                : input;
-
-            if (!int.TryParse(numberPart, out var number))
-                return input;
-
-            string normalized = number.ToString($"D{totalLength}");
-
-            return dotIndex >= 0
-                ? normalized + input.Substring(dotIndex)
-                : normalized;
-        }
+        
     }
 }
