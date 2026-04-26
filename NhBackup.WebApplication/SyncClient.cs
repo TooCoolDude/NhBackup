@@ -20,22 +20,10 @@ public class SyncClient
     {
         _options = options.Value;
 
+        _apiClient = NhHttpClientFactory.CreateApi(_options);
 
-        _apiHttpClient = new HttpClient();
-        _apiHttpClient.DefaultRequestHeaders.Add("Authorization", $"Key {_options.ApiKey}");
-        _apiHttpClient.DefaultRequestHeaders.Add("User-Agent", "NhBackup/1.0");
-        var adapter = new HttpClientRequestAdapter(
-            new AnonymousAuthenticationProvider(),
-            httpClient: _apiHttpClient
-        );
-        adapter.BaseUrl = "https://nhentai.net";
-        _apiClient = new ApiClient(adapter);
-
-
-        _cdnHttpClient = new HttpClient();
-        _cdnHttpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
-        _cdnHttpClient.DefaultRequestHeaders.Add("Referer", "https://nhentai.net/");
-        _cdnHttpClient.Timeout = TimeSpan.FromSeconds(30);
+        _cdnHttpClient =
+            NhHttpClientFactory.CreateCdn();
     }
     /// <summary>
     /// Retrieves the list of CDN image servers.
@@ -89,8 +77,11 @@ public class SyncClient
         try
         {
             var response = await _cdnHttpClient.GetAsync(url);
-            response.EnsureSuccessStatusCode();
-
+            //response.EnsureSuccessStatusCode();
+            if(!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("TEST");
+            }
             var bytes = await response.Content.ReadAsByteArrayAsync();
             await File.WriteAllBytesAsync(path, bytes);
         }
@@ -113,16 +104,23 @@ public class SyncClient
 
         foreach (var chunk in ids.Chunk(50))
         {
-            // await ApiRateLimiters.TagsApi.AcquireAsync(1);
-            var tags = await _apiClient.Api.V2.Tags.Ids.GetAsync(config =>
+            try
             {
-                config.QueryParameters.Ids = string.Join(",", chunk);
-            });
+                // await ApiRateLimiters.TagsApi.AcquireAsync(1);
+                var tags = await _apiClient.Api.V2.Tags.Ids.GetAsync(config =>
+                {
+                    config.QueryParameters.Ids = string.Join(",", chunk);
+                });
+                if (tags == null)
+                    continue;
 
-            if (tags == null)
-                continue;
+                result.AddRange(tags);
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
 
-            result.AddRange(tags);
         }
 
         return result;
