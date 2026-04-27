@@ -43,7 +43,7 @@ public class SyncClient
         {
             throw new Exception("No image servers found in CDN configuration");
         }
-        _logger.LogInformation("CDN configuration retrieved successfully.\nImage servers:\n{ImageServers}", string.Join("\n", cdnsResponse.ImageServers));
+        _logger.LogInformation("CDN configuration retrieved successfully.\nCDN image servers:\n{ImageServers}", string.Join("\n", cdnsResponse.ImageServers));
         return cdnsResponse.ImageServers;
     }
 
@@ -80,18 +80,33 @@ public class SyncClient
 
     public async Task DownloadFileByUrl(string url, string path)
     {
-        var response = await _cdnHttpClient.GetAsync(url);
-        response.EnsureSuccessStatusCode();
+        _logger.LogTrace("Downloading {Url}", url);
 
-        var bytes = await response.Content.ReadAsByteArrayAsync();
+        using var response = await _cdnHttpClient.GetAsync(
+            url,
+            HttpCompletionOption.ResponseHeadersRead);
+
+        response.EnsureSuccessStatusCode();
 
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
-        await File.WriteAllBytesAsync(path, bytes);
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        await using var fileStream = new FileStream(
+            path,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 81920,
+            useAsync: true);
+
+        await stream.CopyToAsync(fileStream);
+
+        _logger.LogTrace("Saved to {Path}", path);
 
         if (!File.Exists(path))
             throw new Exception($"File was not created: {path}");
     }
+
     public async Task<List<TagResponse>> GetTags(List<int> ids)
     {
         var result = new List<TagResponse>();
