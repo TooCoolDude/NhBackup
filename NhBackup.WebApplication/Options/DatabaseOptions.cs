@@ -5,7 +5,7 @@ namespace NhBackup.WebApplication.Options
     public class DatabaseOptions
     {
         [Required]
-        public string DatabaseFolder { get; set; }
+        public string DataFolder { get; set; }
 
         [Required]
         public string AdminPassword { get; set; }

@@ -16,6 +16,6 @@ namespace NhBackup.WebApplication.Options
         public int SyncIntevralHours { get; set; } = 2;
 
         [Required]
-        public string DatabaseFolder { get; set; }
+        public string DataFolder { get; set; }
     }
 }

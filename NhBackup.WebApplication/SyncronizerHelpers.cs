@@ -1,4 +1,6 @@
-﻿namespace NhentaiBackup.WebApplication;
+﻿using NhBackup.WebApplication.Db;
+
+namespace NhentaiBackup.WebApplication;
 
 internal static class SyncronizerHelpers
 {
@@ -41,5 +43,23 @@ internal static class SyncronizerHelpers
         }
 
         return null;
+    }
+    public static string ToFullPath(string datafolder,string relativePath)
+    {
+        return Path.Combine(
+            datafolder,
+            relativePath.TrimStart('/'));
+    }
+    public static bool ValidateDbGalleryEntity(Gallery? existing)
+    {
+        if (existing.MediaPaths == null)
+        {
+            return false;
+        }
+        if (existing.NumPages != existing.MediaPaths.Count)
+        {
+            return false;
+        }
+        return true;
     }
 }

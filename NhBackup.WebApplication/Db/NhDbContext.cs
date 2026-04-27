@@ -19,7 +19,7 @@ namespace NhBackup.WebApplication.Db
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            var path = Path.Combine(_options.DatabaseFolder, "nhentai.db");
+            var path = Path.Combine(_options.DataFolder, "nhentai.db");
             options.UseSqlite($"Data Source={path}");
         }
 

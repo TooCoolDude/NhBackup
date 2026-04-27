@@ -17,7 +17,7 @@ namespace NhBackup.WebApplication.Pages
         public GalleryModel(NhDbContext db, IOptions<DatabaseOptions> options)
         {
             _db = db;
-            _folderPath = options.Value.DatabaseFolder;
+            _folderPath = options.Value.DataFolder;
         }
 
         public Gallery Gallery { get; set; }

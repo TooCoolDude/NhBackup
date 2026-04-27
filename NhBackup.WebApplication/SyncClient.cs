@@ -14,11 +14,12 @@ public class SyncClient
 
     private readonly NhSyncronizerOptions _options;
     private readonly ApiClient _apiClient;
-    private readonly HttpClient _apiHttpClient; // HttpClient for API calls with authentication headers
     private readonly HttpClient _cdnHttpClient; // Separate HttpClient for CDN with different headers and timeout to prevent redirect
-    public SyncClient(IOptions<NhSyncronizerOptions> options)
+    private readonly ILogger<Syncronizer> _logger;
+    public SyncClient(IOptions<NhSyncronizerOptions> options, ILogger<Syncronizer> logger)
     {
         _options = options.Value;
+        _logger = logger;
 
         _apiClient = NhHttpClientFactory.CreateApi(_options);
 
@@ -32,6 +33,7 @@ public class SyncClient
     /// <exception cref="Exception">Thrown when the CDN configuration cannot be retrieved or contains no image servers.</exception>
     public async Task<List<string>> GetCDNs()
     {
+        _logger.LogInformation("Retrieving CDN configuration...");
         var cdnsResponse = await _apiClient.Api.V2.Cdn.GetAsync();
         if (cdnsResponse == null)
         {
@@ -41,11 +43,13 @@ public class SyncClient
         {
             throw new Exception("No image servers found in CDN configuration");
         }
+        _logger.LogInformation("CDN configuration retrieved successfully. Image servers: {ImageServers}", string.Join(", ", cdnsResponse.ImageServers));
         return cdnsResponse.ImageServers;
     }
 
-    public async Task<List<GalleryListItem>> GetAllFavourites()
+    public async Task<List<GalleryListItem>> GetAllFavouritesList()
     {
+        _logger.LogInformation("Retrieving all favorite galleries...");
         var all = new List<GalleryListItem>();
         int page = 1;
 
@@ -64,11 +68,11 @@ public class SyncClient
 
             page++;
         }
-
+        _logger.LogInformation("All favorite galleries retrieved successfully. Total count: {TotalCount}", all.Count);
         return all;
     }
 
-    public async Task<GalleryDetailResponse> GetGallery(int galleryId)
+    public async Task<GalleryDetailResponse> GetGalleryMetadata(int galleryId)
     {
         await ApiRateLimiters.GalleriesApi.AcquireAsync(1);
         return await _apiClient.Api.V2.Galleries[galleryId].GetAsync();

@@ -1,14 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Microsoft.Kiota.Abstractions.Authentication;
-using Microsoft.Kiota.Http.HttpClientLibrary;
 using NhBackup.WebApplication;
 using NhBackup.WebApplication.Db;
 using NhBackup.WebApplication.Options;
-using Nh.Api;
 using Nh.Api.Models;
-using System.Collections.Generic;
 
 namespace NhentaiBackup.WebApplication
 {
@@ -22,238 +18,168 @@ namespace NhentaiBackup.WebApplication
 
         public Syncronizer(IOptions<NhSyncronizerOptions> options, IServiceScopeFactory scopeFactory, ILogger<Syncronizer> logger)
         {
-            _options = options.Value; 
+            _options = options.Value;
             _scopeFactory = scopeFactory;
             _logger = logger;
             _timer = new(TimeSpan.FromHours(_options.SyncIntevralHours));
-            _syncClient = new SyncClient(options);
+            _syncClient = new SyncClient(options, logger);
         }
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
             do
             {
                 try
                 {
-                    await Syncronize();
+                    await Syncronize(cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex.Message);
                 }
             }
-            while (await _timer.WaitForNextTickAsync(stoppingToken));
+            while (await _timer.WaitForNextTickAsync(cancellationToken));
         }
 
-        public async Task Syncronize()
+        public async Task Syncronize(CancellationToken cancellationToken)
         {
-            var cdns = await _syncClient.GetCDNs();
-            var all = await _syncClient.GetAllFavourites();
-
             await using var scope = _scopeFactory.CreateAsyncScope();
             await using var db = scope.ServiceProvider.GetRequiredService<NhDbContext>();
+            try
+            {
+                Console.WriteLine($"\n=== SYNC STARTED at {DateTime.UtcNow} ===");
 
-            int processed = 0;
-            int created = 0;
-            int updated = 0;
-            int brokenMedia = 0;
+                var cdns = await _syncClient.GetCDNs();
+                var favorites = await _syncClient.GetAllFavouritesList();
+                var favoritesRequiresSync = await FilterFavouritesRequiresSync(favorites, db);
+                await FetchGalleriesWithMedia(cdns, db, favoritesRequiresSync, false);
 
+                var tagIds = await db.Tags.Select(t => t.Id).ToListAsync();
+                await LoadTagNamesAndTypes(db, tagIds);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical($"❌ Sync failed: {ex.Message}");
+                return;
+            }
+        }
+
+        private async Task<List<GalleryListItem>> FilterFavouritesRequiresSync(List<GalleryListItem> all, NhDbContext db)
+        {
+            _logger.LogInformation($"Filtering galleries that require sync...");
+            var requiresSync = new List<GalleryListItem>();
             foreach (var item in all)
             {
-                if (item.Id is null) continue;
+                if (item.Id is null)
+                    continue;
 
                 var galleryId = item.Id.Value;
 
-                Console.WriteLine($"\n=== {galleryId} ===");
-
                 var existing = await db.Galleries.FindAsync(galleryId);
-                bool isNew = existing == null;
 
-                bool isValidInDb = false;
-
-                if (!isNew)
+                if (existing == null ||
+                    !SyncronizerHelpers.ValidateDbGalleryEntity(existing) ||
+                    !ValidateMediaFiles(existing, true))
                 {
-                    isValidInDb = IsValidGallery(existing);
-
-                    // 🔴 КЛЮЧЕВАЯ ДИАГНОСТИКА
-                    if (existing.MediaPaths == null)
-                    {
-                        Console.WriteLine("❌ MediaPaths = NULL");
-                    }
-                    else if (!existing.MediaPaths.Any())
-                    {
-                        Console.WriteLine("❌ MediaPaths = EMPTY");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"MediaPaths count: {existing.MediaPaths.Count}");
-                    }
-
-                    // Доп проверка файлов на диске
-                    if (existing.MediaPaths != null && existing.MediaPaths.Any())
-                    {
-                        var missingFiles = existing.MediaPaths.Where(p => !FileExists(p)).ToList();
-                        if (missingFiles.Any())
-                        {
-                            Console.WriteLine($"❌ Missing files: {missingFiles.Count}");
-                            isValidInDb = false;
-                        }
-                    }
+                    requiresSync.Add(item);
                 }
-
-                // 🔥 ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА
-                bool needRedownload =
-                    isNew ||
-                    !isValidInDb ||
-                    existing?.MediaPaths == null ||
-                    !existing.MediaPaths.Any();
-
-                if (needRedownload)
-                {
-                    if (!isNew)
-                    {
-                        Console.WriteLine("⚠️ Forcing re-download");
-
-                        db.Galleries.Remove(existing);
-                        await db.SaveChangesAsync();
-                    }
-
-                    var full = await _syncClient.GetGallery(galleryId);
-                    if (full == null)
-                    {
-                        Console.WriteLine("❌ full == null");
-                        continue;
-                    }
-
-                    var galleryFolder = Path.Combine(
-                        _options.DatabaseFolder,
-                        "downloads",
-                        galleryId.ToString());
-
-                    var mediaPaths = await DownloadGalleryMedia(cdns, full, galleryFolder);
-
-                    // 🔴 КРИТИЧЕСКАЯ ПРОВЕРКА
-                    if (mediaPaths == null)
-                    {
-                        Console.WriteLine("❌ mediaPaths == null");
-                        brokenMedia++;
-                        continue;
-                    }
-
-                    if (!mediaPaths.Any())
-                    {
-                        Console.WriteLine("❌ mediaPaths EMPTY после скачивания");
-                        brokenMedia++;
-                        continue;
-                    }
-
-                    // Проверка существования файлов
-                    var notExists = mediaPaths.Where(p => !FileExists(p)).ToList();
-                    if (notExists.Any())
-                    {
-                        Console.WriteLine($"❌ скачали, но файлов нет: {notExists.Count}");
-                        brokenMedia++;
-                        continue;
-                    }
-
-                    var gallery = new Gallery
-                    {
-                        Id = galleryId,
-                        MediaId = item.MediaId,
-                        MediaPaths = mediaPaths,
-                        EnglishTitle = item.EnglishTitle,
-                        JapaneseTitle = SyncronizerHelpers.GetJapaneseTitle(item.JapaneseTitle),
-                        NumPages = item.NumPages ?? 0,
-                        Thumbnail = item.Thumbnail,
-                        ThumbnailWidth = item.ThumbnailWidth ?? 0,
-                        ThumbnailHeight = item.ThumbnailHeight ?? 0,
-                        Blacklisted = item.Blacklisted ?? false,
-                        SyncedAt = DateTime.UtcNow
-                    };
-
-                    await db.Galleries.AddAsync(gallery);
-                    await db.SaveChangesAsync();
-
-                    Console.WriteLine($"✅ CREATED with {mediaPaths.Count} files");
-
-                    created++;
-                }
-                else
-                {
-                    Console.WriteLine("OK existing");
-                }
-
-                // --- TAGS ---
-                bool tagsAdded = false;
-
-                if (item.TagIds != null)
-                {
-                    foreach (var tagId in item.TagIds.Where(x => x.HasValue).Select(x => x.Value))
-                    {
-                        if (!await db.Tags.AnyAsync(t => t.Id == tagId))
-                        {
-                            db.Tags.Add(new Tag { Id = tagId });
-                        }
-
-                        var exists = await db.GalleryTags
-                            .AnyAsync(gt => gt.GalleryId == galleryId && gt.TagId == tagId);
-
-                        if (!exists)
-                        {
-                            db.GalleryTags.Add(new GalleryTag
-                            {
-                                GalleryId = galleryId,
-                                TagId = tagId
-                            });
-
-                            tagsAdded = true;
-                        }
-                    }
-                }
-
-                if (tagsAdded)
-                {
-                    await db.SaveChangesAsync();
-                    updated++;
-                    Console.WriteLine("🔄 tags updated");
-                }
-
-                processed++;
             }
-
-            var tagIds = await db.Tags.Select(t => t.Id).ToListAsync();
-            await LoadTagNamesAndTypes(db, tagIds);
-
-            Console.WriteLine("\n=== DONE ===");
-            Console.WriteLine($"Processed: {processed}");
-            Console.WriteLine($"Created: {created}");
-            Console.WriteLine($"Updated: {updated}");
-            Console.WriteLine($"Broken media: {brokenMedia}");
+            _logger.LogInformation($"Galleries requiring sync: {requiresSync.Count} of {all.Count}");
+            return requiresSync;
         }
 
-        private string ToFullPath(string relativePath)
+        private async Task FetchGalleriesWithMedia(List<string> cdns, NhDbContext db, List<GalleryListItem> items, bool isNew)
         {
-            return Path.Combine(
-                _options.DatabaseFolder,
-                relativePath.TrimStart('/'));
+            _logger.LogInformation($"Fetching galleries with media...");
+            int index = 0;
+            foreach (var item in items)
+            {
+                var galleryId = item.Id.Value;
+                var full = await _syncClient.GetGalleryMetadata(galleryId);
+
+                var galleryFolder = Path.Combine(
+                    _options.DataFolder,
+                    "downloads",
+                    galleryId.ToString());
+
+                var mediaPaths = await DownloadGalleryMedia(cdns, full, galleryFolder);
+
+                var gallery = new Gallery
+                {
+                    Id = galleryId,
+                    MediaId = item.MediaId,
+                    MediaPaths = mediaPaths,
+                    EnglishTitle = item.EnglishTitle,
+                    JapaneseTitle = SyncronizerHelpers.GetJapaneseTitle(item.JapaneseTitle),
+                    NumPages = item.NumPages ?? 0,
+                    Thumbnail = item.Thumbnail,
+                    ThumbnailWidth = item.ThumbnailWidth ?? 0,
+                    ThumbnailHeight = item.ThumbnailHeight ?? 0,
+                    Blacklisted = item.Blacklisted ?? false,
+                    SyncedAt = DateTime.UtcNow
+                };
+                await db.Galleries.AddAsync(gallery);
+                await db.SaveChangesAsync();
+                await UpdateTags(db, item);
+                index++;
+                _logger.LogInformation($"Gallery {index} of {items.Count} synced");
+            }
+        }
+
+        private async Task UpdateTags(NhDbContext db, GalleryListItem item)
+        {
+            var galleryId = item.Id.Value;
+            bool tagsAdded = false;
+
+            if (item.TagIds != null)
+            {
+                foreach (var tagId in item.TagIds.Where(x => x.HasValue).Select(x => x.Value))
+                {
+                    if (!await db.Tags.AnyAsync(t => t.Id == tagId))
+                    {
+                        db.Tags.Add(new Tag { Id = tagId });
+                    }
+
+                    var exists = await db.GalleryTags
+                        .AnyAsync(gt => gt.GalleryId == galleryId && gt.TagId == tagId);
+
+                    if (!exists)
+                    {
+                        db.GalleryTags.Add(new GalleryTag
+                        {
+                            GalleryId = galleryId,
+                            TagId = tagId
+                        });
+
+                        tagsAdded = true;
+                    }
+                }
+            }
+
+            if (tagsAdded)
+            {
+                await db.SaveChangesAsync();
+                _logger.LogInformation("🔄 tags updated");
+            }
+        }
+
+        private bool ValidateMediaFiles(Gallery? existing, bool IsGalleryDbEntityValid)
+        {
+            if (existing.MediaPaths != null && existing.MediaPaths.Any())
+            {
+                var missingFiles = existing.MediaPaths.Where(p => !FileExists(p)).ToList();
+                if (missingFiles.Any())
+                {
+                    Console.WriteLine($"❌ Missing files: {missingFiles.Count}");
+                    IsGalleryDbEntityValid = false;
+                }
+            }
+            return IsGalleryDbEntityValid;
         }
 
         private bool FileExists(string relativePath)
         {
-            return File.Exists(ToFullPath(relativePath));
-        }
-
-        private static bool IsValidGallery(Gallery? existing)
-        {
-            if (existing.MediaPaths == null)
-            {
-                return false;
-            }
-            if(existing.NumPages != existing.MediaPaths.Count)
-            {
-                return false;
-            }
-            return true;
+            return File.Exists(SyncronizerHelpers.ToFullPath(_options.DataFolder, relativePath));
         }
 
         private async Task LoadTagNamesAndTypes(NhDbContext db, List<int> ids)
@@ -263,7 +189,7 @@ namespace NhentaiBackup.WebApplication
                 var tags = await _syncClient.GetTags(ids);
                 await SaveTagsAsync(db, tags);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 throw;
             }
@@ -290,9 +216,9 @@ namespace NhentaiBackup.WebApplication
         }
 
         private async Task<List<string>?> DownloadGalleryMedia(
-    List<string> cdns,
-    GalleryDetailResponse gallery,
-    string galleryFolder)
+        List<string> cdns,
+        GalleryDetailResponse gallery,
+        string galleryFolder)
         {
             if (gallery.Id == null)
                 return null;
@@ -329,7 +255,6 @@ namespace NhentaiBackup.WebApplication
 
                     bool success = false;
 
-                    // 🔥 скачиваем только если нет файла
                     if (!File.Exists(fullFilePath))
                     {
                         foreach (var cdn in cdns)

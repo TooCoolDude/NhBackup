@@ -59,7 +59,7 @@ internal class Program
         app.UseStaticFiles();
 
         var dbOptions = app.Services.GetService<IOptions<DatabaseOptions>>().Value;
-        var downloadsPath = Path.Combine(dbOptions.DatabaseFolder, "downloads");
+        var downloadsPath = Path.Combine(dbOptions.DataFolder, "downloads");
         if (!Directory.Exists(downloadsPath))
         {
             Directory.CreateDirectory(downloadsPath);
