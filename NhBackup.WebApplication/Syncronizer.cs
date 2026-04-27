@@ -92,7 +92,7 @@ namespace NhentaiBackup.WebApplication
                     // Доп проверка файлов на диске
                     if (existing.MediaPaths != null && existing.MediaPaths.Any())
                     {
-                        var missingFiles = existing.MediaPaths.Where(p => !File.Exists(p)).ToList();
+                        var missingFiles = existing.MediaPaths.Where(p => !FileExists(p)).ToList();
                         if (missingFiles.Any())
                         {
                             Console.WriteLine($"❌ Missing files: {missingFiles.Count}");
