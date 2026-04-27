@@ -47,7 +47,7 @@ namespace NhentaiBackup.WebApplication
             await using var db = scope.ServiceProvider.GetRequiredService<NhDbContext>();
             try
             {
-                Console.WriteLine($"\n=== SYNC STARTED at {DateTime.UtcNow} ===");
+                _logger.LogInformation($"\n=== SYNC STARTED at {DateTime.UtcNow} ===");
 
                 var cdns = await _syncClient.GetCDNs();
                 var favorites = await _syncClient.GetAllFavouritesList();
@@ -60,7 +60,7 @@ namespace NhentaiBackup.WebApplication
             catch (Exception ex)
             {
                 _logger.LogCritical($"❌ Sync failed: {ex.Message}");
-                return;
+                throw;
             }
         }
 
@@ -170,7 +170,7 @@ namespace NhentaiBackup.WebApplication
                 var missingFiles = existing.MediaPaths.Where(p => !FileExists(p)).ToList();
                 if (missingFiles.Any())
                 {
-                    Console.WriteLine($"❌ Missing files: {missingFiles.Count}");
+                    _logger.LogWarning($"❌ Missing files: {missingFiles.Count}");
                     IsGalleryDbEntityValid = false;
                 }
             }
@@ -184,13 +184,17 @@ namespace NhentaiBackup.WebApplication
 
         private async Task LoadTagNamesAndTypes(NhDbContext db, List<int> ids)
         {
+            _logger.LogInformation($"Loading tag names and types for {ids.Count} tags...");
             try
             {
                 var tags = await _syncClient.GetTags(ids);
+                _logger.LogInformation($"Fetched {tags.Count} tags from API");
                 await SaveTagsAsync(db, tags);
+                _logger.LogInformation($"Tag names and types updated");
             }
             catch (Exception ex)
             {
+                _logger.LogError($"❌ Failed to load tag names and types: {ex.Message}");
                 throw;
             }
         }
@@ -232,8 +236,7 @@ namespace NhentaiBackup.WebApplication
 
                 if (gallery.Pages == null || gallery.Pages.Count == 0)
                 {
-                    Console.WriteLine($"❌ No pages for {galleryId}");
-                    return null;
+                    throw new Exception($"Gallery {galleryId} has no pages info");
                 }
 
                 int total = gallery.Pages.Count;
@@ -257,25 +260,7 @@ namespace NhentaiBackup.WebApplication
 
                     if (!File.Exists(fullFilePath))
                     {
-                        foreach (var cdn in cdns)
-                        {
-                            var url = $"{cdn}{pagePath}";
-
-                            try
-                            {
-                                await _syncClient.DownloadFileByUrl(url, fullFilePath);
-
-                                if (File.Exists(fullFilePath))
-                                {
-                                    success = true;
-                                    break;
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine($"❌ CDN fail {cdn} page {i + 1}/{total}: {ex.Message}");
-                            }
-                        }
+                        success = await TryDownloadFileFromMultipleCDN(cdns, pagePath, fullFilePath, galleryId, i);
                     }
                     else
                     {
@@ -284,17 +269,17 @@ namespace NhentaiBackup.WebApplication
 
                     if (success)
                     {
-                        // 🔥 В БД храним RELATIVE path
+                        // Save relative path for DB
                         loadedMedia.Add($"/downloads/{galleryId}/{fileName}");
                         successCount++;
                     }
                     else
                     {
-                        Console.WriteLine($"❌ FAILED page {i + 1}/{total} ({galleryId})");
+                        _logger.LogWarning($"❌ FAILED page {i + 1}/{total} ({galleryId})");
                     }
                 }
 
-                Console.WriteLine($"📄 Pages: {galleryId} ({successCount}/{total})");
+                _logger.LogInformation($"📄 Pages: {galleryId} ({successCount}/{total})");
 
                 if (successCount != total)
                     throw new Exception($"Not all pages downloaded: {successCount}/{total}");
@@ -303,7 +288,7 @@ namespace NhentaiBackup.WebApplication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Critical error gallery {galleryId}: {ex.Message}");
+                _logger.LogError(ex, "❌ Critical error gallery {GalleryId}", galleryId);
                 return null;
             }
         }
@@ -326,9 +311,10 @@ namespace NhentaiBackup.WebApplication
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"  ❌ Error downloading page {pageIndex + 1} {galleryId}: {ex.Message}");
+                    _logger.LogWarning(ex, "  ❌ Error downloading page from CDN {Cdn} page {PageIndex}/{GalleryId}", cdn, pageIndex + 1, galleryId);
                 }
             }
+            _logger.LogError("  ❌ All CDNs failed for page {PageIndex}/{GalleryId}", pageIndex + 1, galleryId);
             return false;
         }
 

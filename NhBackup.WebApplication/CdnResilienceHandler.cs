@@ -12,7 +12,7 @@ public class CdnResilienceHandler : DelegatingHandler
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        // 🔴 GLOBAL COOLDOWN (важно даже без параллелизма)
+        // 🔴 GLOBAL COOLDOWN
         lock (_lock)
         {
             if (DateTime.UtcNow < _cooldownUntil)

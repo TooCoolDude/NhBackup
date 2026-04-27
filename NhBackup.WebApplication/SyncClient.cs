@@ -43,7 +43,7 @@ public class SyncClient
         {
             throw new Exception("No image servers found in CDN configuration");
         }
-        _logger.LogInformation("CDN configuration retrieved successfully. Image servers: {ImageServers}", string.Join(", ", cdnsResponse.ImageServers));
+        _logger.LogInformation("CDN configuration retrieved successfully.\nImage servers:\n{ImageServers}", string.Join("\n", cdnsResponse.ImageServers));
         return cdnsResponse.ImageServers;
     }
 
@@ -64,7 +64,7 @@ public class SyncClient
             if (data?.Result == null || data.Result.Count == 0) break;
 
             all.AddRange(data.Result);
-            Console.WriteLine($"Page {page}: {data.Result.Count} (Total {all.Count})");
+            _logger.LogInformation($"Page {page}: {data.Result.Count} (Total {all.Count})");
 
             page++;
         }
@@ -134,7 +134,7 @@ public class SyncClient
     //    }
     //    catch (Exception ex)
     //    {
-    //        Console.WriteLine($"  ❌ Error downloading torrent for gallery {galleryId}: {ex.Message}");
+    //        _logger.LogError($"  ❌ Error downloading torrent for gallery {galleryId}: {ex.Message}");
 
     //    }
     //    return false;
