@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace NhBackup.WebApplication.Db
 {
@@ -17,6 +18,7 @@ namespace NhBackup.WebApplication.Db
         public bool Blacklisted { get; set; }
         public DateTime SyncedAt { get; set; }
         public List<Tag> Tags { get; set; } = new();
+        [JsonIgnore]
         public bool IsFavorite { get; set; }
     }
 }
