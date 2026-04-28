@@ -5,6 +5,7 @@ using Microsoft.Kiota.Abstractions.Authentication;
 using Microsoft.Kiota.Http.HttpClientLibrary;
 using Nh.Api;
 using NhBackup.WebApplication.Db;
+using NhBackup.WebApplication.Infrastructure;
 using NhBackup.WebApplication.Infrastructure.Clients;
 using NhBackup.WebApplication.Infrastructure.Handlers;
 using NhBackup.WebApplication.Options;
@@ -44,11 +45,15 @@ internal class Program
         // ----------------------------
         // HANDLERS + STATE STORE
         // ----------------------------
-        // Transient — требование фабрики для message handlers
-        // ApiRateLimitStateStore остаётся Singleton — он хранит состояние
         builder.Services.AddSingleton<ApiRateLimitStateStore>();
         builder.Services.AddTransient<ApiRateLimitHandler>();
         builder.Services.AddTransient<CdnResilienceHandler>();
+
+        // ----------------------------
+        // CDN POOL
+        // ----------------------------
+        // Singleton — holds per-CDN cooldown state across the sync run
+        builder.Services.AddSingleton<CdnPool>();
 
         // ----------------------------
         // API CLIENT (Kiota)

@@ -31,7 +31,8 @@ public class SyncClient
         if (cdnsResponse.ImageServers == null || cdnsResponse.ImageServers.Count == 0)
             throw new Exception("No image servers found in CDN configuration");
 
-        _logger.LogInformation("CDN image servers:\n{ImageServers}", string.Join("\n", cdnsResponse.ImageServers));
+        _logger.LogInformation("CDN image servers:\n{ImageServers}",
+            string.Join("\n", cdnsResponse.ImageServers));
 
         return cdnsResponse.ImageServers;
     }
@@ -57,7 +58,8 @@ public class SyncClient
                 break;
 
             all.AddRange(data.Result);
-            _logger.LogInformation("Page {Page}: {Count} items (Total {Total})", page, data.Result.Count, all.Count);
+            _logger.LogInformation("Page {Page}: {Count} items (Total {Total})",
+                page, data.Result.Count, all.Count);
 
             page++;
         }
@@ -75,7 +77,8 @@ public class SyncClient
     }
 
     /// <summary>
-    /// Downloads a file from a URL and saves it to the given path.
+    /// Downloads a file from a fully-formed URL and saves it to the given path.
+    /// Throws on non-success status so caller can handle CDN fallback.
     /// </summary>
     public async Task DownloadFileByUrl(string url, string path)
     {
