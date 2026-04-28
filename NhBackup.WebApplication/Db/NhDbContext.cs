@@ -28,6 +28,21 @@ namespace NhBackup.WebApplication.Db
             modelBuilder.Entity<GalleryTag>()
                 .HasKey(gt => new { gt.GalleryId, gt.TagId });
 
+            modelBuilder.Entity<GalleryTag>()
+                .HasOne(gt => gt.Gallery)
+                .WithMany()
+                .HasForeignKey(gt => gt.GalleryId);
+
+            modelBuilder.Entity<GalleryTag>()
+                .HasOne(gt => gt.Tag)
+                .WithMany()
+                .HasForeignKey(gt => gt.TagId);
+
+            modelBuilder.Entity<Gallery>()
+                .HasMany(g => g.Tags)
+                .WithMany(t => t.Galleries)
+                .UsingEntity<GalleryTag>();
+
             modelBuilder.Entity<Gallery>()
                 .HasIndex(g => g.Id)
                 .IsUnique();

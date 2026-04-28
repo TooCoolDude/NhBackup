@@ -1,11 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Nh.Api.Models;
 using NhBackup.WebApplication.Db;
 using NhBackup.WebApplication.Infrastructure;
 using NhBackup.WebApplication.Infrastructure.Clients;
 using NhBackup.WebApplication.Options;
-using Nh.Api.Models;
 using System.Diagnostics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace NhentaiBackup.WebApplication;
 
@@ -75,7 +77,7 @@ public class Syncronizer : BackgroundService
 
             var tagIds = await db.Tags.Select(t => t.Id).ToListAsync(cancellationToken);
             await LoadTagNamesAndTypes(db, syncClient, tagIds);
-
+            await SaveGalleryBackups(db, cancellationToken);
             _logger.LogInformation("=== SYNC COMPLETED at {Time} ===", DateTime.UtcNow);
         }
         catch (Exception ex)
@@ -408,6 +410,46 @@ public class Syncronizer : BackgroundService
         }
 
         await db.SaveChangesAsync();
+    }
+
+    private async Task SaveGalleryBackups(NhDbContext db, CancellationToken cancellationToken)
+    {
+        const int batchSize = 100;
+
+        var totalIds = await db.Galleries
+            .Select(g => g.Id)
+            .ToListAsync(cancellationToken);
+
+        int saved = 0;
+
+        foreach (var batch in totalIds.Chunk(batchSize))
+        {
+            var galleries = await db.Galleries
+                .AsNoTracking()
+                .Where(g => batch.Contains(g.Id))
+                .Include(g => g.Tags)
+                .ToListAsync(cancellationToken);
+
+            foreach (var gallery in galleries)
+            {
+                var folder = Path.Combine(_options.DataFolder, "downloads", gallery.Id.ToString());
+                var jsonPath = Path.Combine(folder, "gallery.json");
+
+                if (File.Exists(jsonPath))
+                    continue;
+
+                var json = JsonSerializer.Serialize(gallery, new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    ReferenceHandler = ReferenceHandler.IgnoreCycles
+                });
+
+                await File.WriteAllTextAsync(jsonPath, json, cancellationToken);
+                saved++;
+            }
+        }
+
+        _logger.LogInformation("Gallery backups saved: {Saved} of {Total}", saved, totalIds.Count);
     }
 
     // ---------------------------------------------------------------------------
