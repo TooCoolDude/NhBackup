@@ -1,15 +1,14 @@
-﻿namespace NhBackup.WebApplication;
+﻿namespace NhBackup.WebApplication.Infrastructure.Handlers;
 
-using System.Collections.Concurrent;
 using System.Net;
 
 public class ApiRateLimitHandler : DelegatingHandler
 {
-    private readonly ConcurrentDictionary<string, EndpointRateState> _states;
+    private readonly ApiRateLimitStateStore _store;
 
-    public ApiRateLimitHandler(ConcurrentDictionary<string, EndpointRateState> states)
+    public ApiRateLimitHandler(ApiRateLimitStateStore store)
     {
-        _states = states;
+        _store = store;
     }
 
     protected override async Task<HttpResponseMessage> SendAsync(
@@ -19,7 +18,7 @@ public class ApiRateLimitHandler : DelegatingHandler
         var endpoint = Normalize(request.RequestUri);
 
         // Do not run if limit exceeded
-        if (_states.TryGetValue(endpoint, out var state))
+        if (_store.States.TryGetValue(endpoint, out var state))
         {
             if (state.Remaining <= 0 && state.ResetAt > DateTime.UtcNow)
             {
@@ -30,7 +29,7 @@ public class ApiRateLimitHandler : DelegatingHandler
 
         var response = await base.SendAsync(request, cancellationToken);
 
-        state ??= _states.GetOrAdd(endpoint, _ => new EndpointRateState());
+        state ??= _store.States.GetOrAdd(endpoint, _ => new EndpointRateState());
 
         // 📊 update rate limit
         if (response.Headers.TryGetValues("x-ratelimit-remaining", out var rem))

@@ -1,4 +1,4 @@
-﻿namespace NhBackup.WebApplication;
+﻿namespace NhBackup.WebApplication.Infrastructure.Handlers;
 
 public class EndpointRateState
 {
