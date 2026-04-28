@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using NhBackup.WebApplication.Db;
+using NhBackup.WebApplication.Db.Entities;
 
 namespace NhBackup.WebApplication.Pages
 {

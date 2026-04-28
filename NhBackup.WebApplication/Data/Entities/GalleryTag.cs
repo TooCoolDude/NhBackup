@@ -1,4 +1,4 @@
-﻿namespace NhBackup.WebApplication.Db
+﻿namespace NhBackup.WebApplication.Db.Entities
 {
     public class GalleryTag
     {

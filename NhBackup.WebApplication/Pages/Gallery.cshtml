@@ -1,7 +1,14 @@
 ﻿@page "{id}"
 @model NhBackup.WebApplication.Pages.GalleryModel
+@using NhBackup.WebApplication.Infrastructure
 @{
     ViewData["Title"] = Model.Gallery.EnglishTitle ?? Model.Gallery.Id.ToString();
+
+    var groupedTags = Model.Tags?
+        .Where(t => t?.Type != null)
+        .GroupBy(t => t.Type!.ToLower())
+        .OrderBy(g => TagTypes.GetOrder(g.Key))
+        .ToList();
 }
 
 <style>
@@ -50,6 +57,7 @@
                 {
                     <p class="text-muted">@Model.Gallery.JapaneseTitle</p>
                 }
+
                 <!-- Favorite button -->
                 <div class="d-grid gap-2 mb-3">
                     <button id="favoriteBtn" class="btn @(Model.Gallery.IsFavorite ? "btn-warning" : "btn-outline-warning")">
@@ -57,18 +65,23 @@
                         @(Model.Gallery.IsFavorite ? "In Favorites" : "Add to Favorites")
                     </button>
                 </div>
+
                 <hr />
 
-                <p><strong>Tags:</strong></p>
+                <!-- Grouped tags -->
                 <div style="max-height: 400px; overflow-y: auto;">
-                    @if (Model.Tags != null && Model.Tags.Any())
+                    @if (groupedTags != null && groupedTags.Any())
                     {
-                        foreach (var tag in Model.Tags)
+                        foreach (var group in groupedTags)
                         {
-                            <div class="mb-1">
-                                <span class="badge bg-secondary" style="display: block; text-align: left;">
-                                    @tag?.Name
-                                </span>
+                            <div class="mb-2">
+                                <p class="mb-1"><strong>@TagTypes.GetLabel(group.Key):</strong></p>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach (var tag in group)
+                                    {
+                                        <span class="badge bg-secondary">@tag.Name</span>
+                                    }
+                                </div>
                             </div>
                         }
                     }
@@ -203,7 +216,7 @@
             e.preventDefault();
         });
 
-                // Favorite button
+        // Favorite button
         const favoriteBtn = document.getElementById('favoriteBtn');
         const galleryId = @Model.Gallery.Id;
 
@@ -230,7 +243,6 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    // Update button
                     if (result.isFavorite) {
                         favoriteBtn.className = 'btn btn-warning';
                         favoriteBtn.innerHTML = '<i class="bi bi-star-fill"></i> In Favorites';

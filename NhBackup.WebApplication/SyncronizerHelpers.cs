@@ -1,4 +1,4 @@
-﻿using NhBackup.WebApplication.Db;
+﻿using NhBackup.WebApplication.Db.Entities;
 
 namespace NhentaiBackup.WebApplication;
 

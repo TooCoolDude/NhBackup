@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace NhBackup.WebApplication.Db
+namespace NhBackup.WebApplication.Db.Entities
 {
     public class Tag
     {

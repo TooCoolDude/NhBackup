@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using NhBackup.WebApplication.Db.Entities;
 using NhBackup.WebApplication.Options;
 
 namespace NhBackup.WebApplication.Db

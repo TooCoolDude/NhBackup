@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using Nh.Api.Models;
 using NhBackup.WebApplication.Db;
+using NhBackup.WebApplication.Db.Entities;
 using NhBackup.WebApplication.Infrastructure;
 using NhBackup.WebApplication.Infrastructure.Clients;
 using NhBackup.WebApplication.Options;
