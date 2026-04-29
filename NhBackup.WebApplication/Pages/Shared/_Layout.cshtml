@@ -8,13 +8,23 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/NhentaiBackup.WebApplication.styles.css" asp-append-version="true" />
+
+    <script>
+        // Apply theme before page renders to avoid flash
+        (function () {
+            const saved = localStorage.getItem('nh-theme');
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = saved ?? (systemDark ? 'deepdark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <nav class="navbar navbar-expand-lg">
             <div class="container">
                 <a class="navbar-brand" href="/">NHentai Backup</a>
-                <div class="navbar-nav">
+                <div class="navbar-nav d-flex align-items-center gap-2">
                     <a class="nav-link" href="/">Home</a>
                     <a class="nav-link" href="/Browse">Browse</a>
                     <a class="nav-link" href="/Favorites">Favourites</a>
@@ -29,38 +39,37 @@
                     {
                         <a class="nav-link" href="/Login">Log in</a>
                     }
-                    <button class="btn btn-outline-secondary" id="themeToggle">🌓 Theme</button>
+                    <select class="theme-select" id="themeSelect">
+                        <option value="deepdark">Deep Dark</option>
+                        <option value="dark">Dark</option>
+                        <option value="blue">Blue</option>
+                        <option value="light">Light</option>
+                    </select>
                 </div>
             </div>
         </nav>
     </header>
+
     <div class="container">
         <main role="main" class="pb-3 pt-3">
             @RenderBody()
         </main>
     </div>
 
-
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
-
     <script>
         const html = document.documentElement;
-        const btn = document.getElementById('themeToggle');
+        const select = document.getElementById('themeSelect');
 
-        // Load saved theme
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) {
-            html.setAttribute('data-bs-theme', savedTheme);
-        }
+        // Sync dropdown to current theme
+        select.value = html.getAttribute('data-theme');
 
-        // Switch theme
-        btn.addEventListener('click', () => {
-            const current = html.getAttribute('data-bs-theme');
-            const newTheme = current === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-bs-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
+        select.addEventListener('change', () => {
+            const theme = select.value;
+            html.setAttribute('data-theme', theme);
+            localStorage.setItem('nh-theme', theme);
         });
     </script>
 
