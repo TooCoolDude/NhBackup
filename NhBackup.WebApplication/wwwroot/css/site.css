@@ -201,6 +201,9 @@
     }
 
 [data-theme] .tag-link {
+    font-size: 0.95rem;
+    padding: 0.45em 0.7em;
+    border-radius: 0.5rem;
     transition: all 0.15s ease-in-out;
     cursor: pointer;
 }
