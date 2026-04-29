@@ -10,10 +10,10 @@
                        name="SearchTags"
                        placeholder="enter some tags"
                        value="@Model.SearchTags">
-                <button class="btn btn-primary" type="submit">Поиск</button>
+                <button class="btn btn-primary" type="submit">Search</button>
                 @if (!string.IsNullOrWhiteSpace(Model.SearchTags))
                 {
-                    <a href="/Favorites" class="btn btn-secondary">Сброс</a>
+                    <a href="/Favorites" class="btn btn-secondary">Reset</a>
                 }
             </div>
         </form>

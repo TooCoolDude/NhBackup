@@ -12,40 +12,51 @@
 }
 
 <style>
-    /* Current page styles */
-    #fullscreenModal .btn {
-        transition: all 0.3s ease;
+    #fullscreenModal {
+        background: var(--nh-bg) !important;
     }
 
-        #fullscreenModal .btn:hover {
-            opacity: 1 !important;
-            transform: scale(1.1);
+        #fullscreenModal .btn {
+            transition: all 0.3s ease;
         }
 
-        #fullscreenModal .btn:active {
-            transform: scale(0.95);
-        }
+            #fullscreenModal .btn:hover {
+                opacity: 1 !important;
+                transform: scale(1.1);
+            }
 
-    [data-bs-theme="light"] #fullscreenModal {
-        background: rgba(255, 255, 255, 0.95) !important;
+            #fullscreenModal .btn:active {
+                transform: scale(0.95);
+            }
+
+    #counterFullscreen {
+        background-color: var(--nh-surface) !important;
+        color: var(--nh-text) !important;
     }
 
-        [data-bs-theme="light"] #fullscreenModal .btn {
-            background-color: #e9ecef;
-            color: #212529;
-            border: 1px solid #dee2e6;
-        }
+    #closeFullscreen,
+    #prevFullscreen,
+    #nextFullscreen,
+    #firstFullscreen,
+    #lastFullscreen {
+        background-color: var(--nh-surface) !important;
+        border-color: var(--nh-border) !important;
+        color: var(--nh-text) !important;
+    }
 
-        [data-bs-theme="light"] #fullscreenModal .rounded-pill {
-            background-color: #e9ecef !important;
-            color: #212529 !important;
+        #closeFullscreen:hover,
+        #prevFullscreen:hover,
+        #nextFullscreen:hover,
+        #firstFullscreen:hover,
+        #lastFullscreen:hover {
+            background-color: var(--nh-tag-bg) !important;
         }
 </style>
 
 <div class="row">
     <!-- Left panel with tags -->
     <div class="col-md-3">
-        <div class="card">
+        <div class="card" style="height: fit-content;">
             <img src="@Model.PageImages.FirstOrDefault()"
                  class="card-img-top"
                  onerror="this.src='https://via.placeholder.com/300x400?text=No+Cover'"
@@ -69,7 +80,7 @@
                 <hr />
 
                 <!-- Grouped tags -->
-                <div style="max-height: 400px; overflow-y: auto;">
+                <div>
                     @if (groupedTags != null && groupedTags.Any())
                     {
                         foreach (var group in groupedTags)
@@ -88,9 +99,9 @@
                 </div>
 
                 <hr />
-                <p><strong>Страниц:</strong> @Model.Gallery.NumPages</p>
+                <p><strong>Pages:</strong> @Model.Gallery.NumPages</p>
                 <p><strong>ID:</strong> @Model.Gallery.Id</p>
-                <a href="/Browse" class="btn btn-secondary w-100 mt-3">← Назад</a>
+                <a href="/Browse" class="btn btn-secondary w-100 mt-3">← Back</a>
             </div>
         </div>
     </div>
@@ -110,56 +121,59 @@
 </div>
 
 <!-- Fullscreen mode -->
-<div id="fullscreenModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bs-body-bg); z-index: 9999;">
+<div id="fullscreenModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;">
     <div style="position: relative; height: 100%; display: flex; align-items: center; justify-content: center;">
-        <img id="fullscreenImage" src="" style="max-width: 90%; max-height: 90%; object-fit: contain;">
+        <img id="fullscreenImage" src="" style="height: 100vh; width: auto; max-width: 100%; object-fit: contain;">
 
-        <!-- Close button -->
-        <button id="closeFullscreen" class="btn btn-dark position-absolute top-0 end-0 m-3 rounded-circle d-flex align-items-center justify-content-center"
-                style="width: 40px; height: 40px; opacity: 0.7;">
-            <i class="bi bi-x-lg"></i>
-        </button>
+        <!-- Top right controls: first, counter, last, close -->
+        <div class="position-absolute top-0 end-0 m-3 d-flex align-items-center gap-2">
+            <button id="firstFullscreen" class="btn rounded-circle d-flex align-items-center justify-content-center"
+                    style="width: 40px; height: 40px; opacity: 0.8;">
+                <i class="bi bi-skip-start-fill"></i>
+            </button>
+            <div id="counterFullscreen" class="rounded-pill d-flex align-items-center justify-content-center px-3"
+                 style="height: 40px; opacity: 0.8; font-size: 14px; white-space: nowrap;">
+            </div>
+            <button id="lastFullscreen" class="btn rounded-circle d-flex align-items-center justify-content-center"
+                    style="width: 40px; height: 40px; opacity: 0.8;">
+                <i class="bi bi-skip-end-fill"></i>
+            </button>
+            <button id="closeFullscreen" class="btn rounded-circle d-flex align-items-center justify-content-center"
+                    style="width: 40px; height: 40px; opacity: 0.8;">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
 
         <!-- Previous button -->
-        <button id="prevFullscreen" class="btn btn-dark position-absolute start-0 top-50 translate-middle-y ms-3 rounded-circle d-flex align-items-center justify-content-center"
-                style="width: 50px; height: 50px; opacity: 0.7;">
+        <button id="prevFullscreen" class="btn position-absolute start-0 top-50 translate-middle-y ms-3 rounded-circle d-flex align-items-center justify-content-center"
+                style="width: 50px; height: 50px; opacity: 0.8;">
             <i class="bi bi-chevron-left fs-4"></i>
         </button>
 
         <!-- Next button -->
-        <button id="nextFullscreen" class="btn btn-dark position-absolute end-0 top-50 translate-middle-y me-3 rounded-circle d-flex align-items-center justify-content-center"
-                style="width: 50px; height: 50px; opacity: 0.7;">
+        <button id="nextFullscreen" class="btn position-absolute end-0 top-50 translate-middle-y me-3 rounded-circle d-flex align-items-center justify-content-center"
+                style="width: 50px; height: 50px; opacity: 0.8;">
             <i class="bi bi-chevron-right fs-4"></i>
         </button>
-
-        <!-- Counter -->
-        <div id="counterFullscreen" class="position-absolute bottom-0 start-50 translate-middle-x mb-3 px-3 py-1 rounded-pill bg-dark text-white"
-             style="opacity: 0.8; font-size: 14px;">
-        </div>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        // Collect all images
         const images = @Html.Raw(Json.Serialize(Model.PageImages));
         let currentIndex = 0;
 
-        // Open fullscreen mode
         function openFullscreen(index) {
             currentIndex = index;
-            const img = document.getElementById('fullscreenImage');
-            img.src = images[currentIndex];
+            document.getElementById('fullscreenImage').src = images[currentIndex];
             document.getElementById('fullscreenModal').style.display = 'block';
             updateCounter();
         }
 
-        // Close fullscreen mode
         function closeFullscreen() {
             document.getElementById('fullscreenModal').style.display = 'none';
         }
 
-        // Next image
         function nextImage() {
             if (currentIndex < images.length - 1) {
                 currentIndex++;
@@ -168,7 +182,6 @@
             }
         }
 
-        // Previous image
         function prevImage() {
             if (currentIndex > 0) {
                 currentIndex--;
@@ -177,42 +190,40 @@
             }
         }
 
-        // Update counter
         function updateCounter() {
             document.getElementById('counterFullscreen').textContent = `${currentIndex + 1} / ${images.length}`;
         }
 
-        // Attach event listeners to all images
         document.querySelectorAll('.gallery-image').forEach((img, idx) => {
             img.addEventListener('click', () => openFullscreen(idx));
         });
 
-        // Control buttons
         document.getElementById('closeFullscreen').addEventListener('click', closeFullscreen);
         document.getElementById('prevFullscreen').addEventListener('click', prevImage);
         document.getElementById('nextFullscreen').addEventListener('click', nextImage);
+        document.getElementById('firstFullscreen').addEventListener('click', () => {
+            currentIndex = 0;
+            document.getElementById('fullscreenImage').src = images[currentIndex];
+            updateCounter();
+        });
+        document.getElementById('lastFullscreen').addEventListener('click', () => {
+            currentIndex = images.length - 1;
+            document.getElementById('fullscreenImage').src = images[currentIndex];
+            updateCounter();
+        });
 
-        // Keyboard arrows
         document.addEventListener('keydown', (e) => {
             const modal = document.getElementById('fullscreenModal');
             if (modal.style.display === 'block') {
-                if (e.key === 'ArrowLeft') {
-                    prevImage();
-                } else if (e.key === 'ArrowRight') {
-                    nextImage();
-                } else if (e.key === 'Escape') {
-                    closeFullscreen();
-                }
+                if (e.key === 'ArrowLeft') prevImage();
+                else if (e.key === 'ArrowRight') nextImage();
+                else if (e.key === 'Escape') closeFullscreen();
             }
         });
 
-        // Mouse wheel for navigation
         document.getElementById('fullscreenModal').addEventListener('wheel', (e) => {
-            if (e.deltaY > 0) {
-                nextImage();
-            } else if (e.deltaY < 0) {
-                prevImage();
-            }
+            if (e.deltaY > 0) nextImage();
+            else if (e.deltaY < 0) prevImage();
             e.preventDefault();
         });
 
@@ -220,7 +231,6 @@
         const favoriteBtn = document.getElementById('favoriteBtn');
         const galleryId = @Model.Gallery.Id;
 
-        // Notification function
         function showNotification(message, isSuccess) {
             const notification = document.createElement('div');
             notification.className = `alert alert-${isSuccess ? 'success' : 'danger'} position-fixed bottom-0 end-0 m-3`;
@@ -228,18 +238,12 @@
             notification.style.minWidth = '250px';
             notification.innerHTML = message;
             document.body.appendChild(notification);
-
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
+            setTimeout(() => notification.remove(), 3000);
         }
 
         favoriteBtn.addEventListener('click', async () => {
             try {
-                const response = await fetch(`/api/favorite/toggle/${galleryId}`, {
-                    method: 'POST'
-                });
-
+                const response = await fetch(`/api/favorite/toggle/${galleryId}`, { method: 'POST' });
                 const result = await response.json();
 
                 if (result.success) {
@@ -254,12 +258,11 @@
                 } else {
                     showNotification(result.message || 'Error', false);
                 }
-            } catch (error) {
+            } catch {
                 showNotification('Error occurred', false);
             }
         });
 
-        // Favorite button shortcut (F key)
         document.addEventListener('keydown', (e) => {
             if (e.key === 'f' || e.key === 'F') {
                 e.preventDefault();
