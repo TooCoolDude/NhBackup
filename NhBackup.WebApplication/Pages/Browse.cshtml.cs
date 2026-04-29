@@ -31,7 +31,7 @@ namespace NhBackup.WebApplication.Pages
                 var tags = SearchTags.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
                 var galleryIds = await _db.GalleryTags
-                    .Where(gt => tags.Contains(gt.Tag.Name))
+                    .Where(gt => tags.Contains(gt.Tag.Name) || tags.Contains(gt.Tag.Slug))
                     .GroupBy(gt => gt.GalleryId)
                     .Where(g => g.Count() == tags.Length)
                     .Select(g => g.Key)

@@ -16,6 +16,7 @@ namespace NhBackup.WebApplication.Db.Entities
         public int ThumbnailWidth { get; set; }
         public int ThumbnailHeight { get; set; }
         public bool Blacklisted { get; set; }
+        [JsonIgnore]
         public DateTime SyncedAt { get; set; }
         public List<Tag> Tags { get; set; } = new();
         [JsonIgnore]
