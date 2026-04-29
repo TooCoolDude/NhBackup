@@ -200,6 +200,15 @@
         color: #fff;
     }
 
+[data-theme] .tag-link {
+    transition: all 0.15s ease-in-out;
+    cursor: pointer;
+}
+
+    [data-theme] .tag-link:hover {
+        background-color: var(--nh-accent) !important;
+        color: #fff !important;
+    }
 /* ----------------------------
    Base styles
    ---------------------------- */

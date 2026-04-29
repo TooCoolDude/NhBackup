@@ -90,7 +90,10 @@
                                 <div class="d-flex flex-wrap gap-1">
                                     @foreach (var tag in group)
                                     {
-                                        <span class="badge bg-secondary">@tag.Name</span>
+                                        <a href="/Browse?SearchTags=@tag.Slug"
+                                           class="badge bg-secondary tag-link text-decoration-none">
+                                            @tag.Name
+                                        </a>
                                     }
                                 </div>
                             </div>
