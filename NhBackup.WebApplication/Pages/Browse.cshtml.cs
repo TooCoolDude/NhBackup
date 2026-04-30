@@ -19,7 +19,7 @@ namespace NhBackup.WebApplication.Pages
 
         public List<Gallery> Galleries { get; set; } = new();
 
-        [BindProperty(SupportsGet = true)] //save search query
+        [BindProperty(SupportsGet = true)]
         public string SearchTags { get; set; }
 
         public async Task OnGetAsync()
@@ -41,7 +41,12 @@ namespace NhBackup.WebApplication.Pages
             }
 
             Galleries = await query
-                .OrderByDescending(g => g.SyncedAt)
+                .Join(_db.GalleryMetas,
+                    g => g.Id,
+                    m => m.GalleryId,
+                    (g, m) => new { Gallery = g, Meta = m })
+                .OrderByDescending(x => x.Meta.SyncedAt)
+                .Select(x => x.Gallery)
                 .ToListAsync();
         }
     }

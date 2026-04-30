@@ -10,6 +10,7 @@ namespace NhBackup.WebApplication.Db
         private DatabaseOptions _options;
 
         public DbSet<Gallery> Galleries { get; set; }
+        public DbSet<GalleryMeta> GalleryMetas { get; set; }
         public DbSet<Tag> Tags { get; set; }
         public DbSet<GalleryTag> GalleryTags { get; set; }
 
@@ -43,6 +44,15 @@ namespace NhBackup.WebApplication.Db
                 .HasMany(g => g.Tags)
                 .WithMany(t => t.Galleries)
                 .UsingEntity<GalleryTag>();
+
+            // 1-to-1 bidirectional: Gallery ↔ GalleryMeta
+            modelBuilder.Entity<GalleryMeta>()
+                .HasKey(m => m.GalleryId);
+
+            modelBuilder.Entity<Gallery>()
+                .HasOne(g => g.Meta)
+                .WithOne(m => m.Gallery)
+                .HasForeignKey<GalleryMeta>(m => m.GalleryId);
 
             modelBuilder.Entity<Gallery>()
                 .HasIndex(g => g.Id)

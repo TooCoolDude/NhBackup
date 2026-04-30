@@ -20,9 +20,6 @@ internal class Program
 
         var builder = WebApplication.CreateBuilder(args);
 
-        // ----------------------------
-        // CONFIG
-        // ----------------------------
         builder.Configuration.AddEnvironmentVariables();
 
         if (builder.Environment.IsDevelopment())
@@ -42,22 +39,11 @@ internal class Program
 
         builder.Services.AddDbContext<NhDbContext>();
 
-        // ----------------------------
-        // HANDLERS + STATE STORE
-        // ----------------------------
         builder.Services.AddSingleton<ApiRateLimitStateStore>();
         builder.Services.AddTransient<ApiRateLimitHandler>();
         builder.Services.AddTransient<CdnResilienceHandler>();
-
-        // ----------------------------
-        // CDN POOL
-        // ----------------------------
-        // Singleton — holds per-CDN cooldown state across the sync run
         builder.Services.AddSingleton<CdnPool>();
 
-        // ----------------------------
-        // API CLIENT (Kiota)
-        // ----------------------------
         builder.Services.AddHttpClient("api", (sp, client) =>
         {
             var options = sp.GetRequiredService<IOptions<NhSyncronizerOptions>>().Value;
@@ -74,20 +60,13 @@ internal class Program
         {
             var factory = sp.GetRequiredService<IHttpClientFactory>();
             var http = factory.CreateClient("api");
-
             var adapter = new HttpClientRequestAdapter(
                 authenticationProvider: new AnonymousAuthenticationProvider(),
-                httpClient: http
-            );
-
+                httpClient: http);
             adapter.BaseUrl = "https://nhentai.net";
-
             return new ApiClient(adapter);
         });
 
-        // ----------------------------
-        // CDN CLIENT
-        // ----------------------------
         builder.Services.AddHttpClient("cdn")
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
@@ -95,15 +74,9 @@ internal class Program
             })
             .AddHttpMessageHandler<CdnResilienceHandler>();
 
-        // ----------------------------
-        // APP SERVICES
-        // ----------------------------
         builder.Services.AddTransient<SyncClient>();
         builder.Services.AddHostedService<Syncronizer>();
 
-        // ----------------------------
-        // AUTH
-        // ----------------------------
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(options =>
             {
@@ -113,9 +86,6 @@ internal class Program
 
         var app = builder.Build();
 
-        // ----------------------------
-        // PIPELINE
-        // ----------------------------
         if (!app.Environment.IsDevelopment())
         {
             app.UseExceptionHandler("/Error");
@@ -127,7 +97,6 @@ internal class Program
 
         var dbOptions = app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value;
         var downloadsPath = Path.Combine(dbOptions.DataFolder, "downloads");
-
         Directory.CreateDirectory(downloadsPath);
 
         app.UseStaticFiles(new StaticFileOptions
@@ -137,36 +106,29 @@ internal class Program
         });
 
         app.UseRouting();
-
         app.UseAuthentication();
         app.UseAuthorization();
-
         app.MapRazorPages();
 
-        // ----------------------------
-        // API ENDPOINT
-        // ----------------------------
+        // Favorite toggle — works via GalleryMeta
         app.MapPost("/api/favorite/toggle/{id}", async (int id, NhDbContext db) =>
         {
-            var gallery = await db.Galleries.FindAsync(id);
+            var meta = await db.GalleryMetas.FindAsync(id);
 
-            if (gallery == null)
+            if (meta == null)
                 return Results.Json(new { success = false, message = "Error: Gallery not found" });
 
-            gallery.IsFavorite = !gallery.IsFavorite;
+            meta.IsFavorite = !meta.IsFavorite;
             await db.SaveChangesAsync();
 
             return Results.Json(new
             {
                 success = true,
-                isFavorite = gallery.IsFavorite,
-                message = gallery.IsFavorite ? "Added to favorites" : "Deleted from favorites"
+                isFavorite = meta.IsFavorite,
+                message = meta.IsFavorite ? "Added to favorites" : "Deleted from favorites"
             });
         });
 
-        // ----------------------------
-        // DB INIT
-        // ----------------------------
         using (var scope = app.Services.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<NhDbContext>();

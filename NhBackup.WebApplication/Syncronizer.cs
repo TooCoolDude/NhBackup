@@ -79,6 +79,7 @@ public class Syncronizer : BackgroundService
             var tagIds = await db.Tags.Select(t => t.Id).ToListAsync(cancellationToken);
             await LoadTagNamesAndTypes(db, syncClient, tagIds);
             await SaveGalleryBackups(db, cancellationToken);
+
             _logger.LogInformation("=== SYNC COMPLETED at {Time} ===", DateTime.UtcNow);
         }
         catch (Exception ex)
@@ -161,19 +162,21 @@ public class Syncronizer : BackgroundService
             var gallery = new Gallery
             {
                 Id = galleryId,
-                MediaId = item.MediaId,
                 MediaPaths = mediaPaths,
                 EnglishTitle = item.EnglishTitle,
                 JapaneseTitle = SyncronizerHelpers.GetJapaneseTitle(item.JapaneseTitle),
                 NumPages = item.NumPages ?? 0,
-                Thumbnail = item.Thumbnail,
-                ThumbnailWidth = item.ThumbnailWidth ?? 0,
-                ThumbnailHeight = item.ThumbnailHeight ?? 0,
-                Blacklisted = item.Blacklisted ?? false,
-                SyncedAt = DateTime.UtcNow
+            };
+
+            var meta = new GalleryMeta
+            {
+                GalleryId = galleryId,
+                SyncedAt = DateTime.UtcNow,
+                IsFavorite = false
             };
 
             await db.Galleries.AddAsync(gallery, cancellationToken);
+            await db.GalleryMetas.AddAsync(meta, cancellationToken);
             await UpdateTags(db, item);
             await db.SaveChangesAsync(cancellationToken);
 
@@ -227,14 +230,10 @@ public class Syncronizer : BackgroundService
                 bool success;
 
                 if (File.Exists(fullFilePath))
-                {
                     success = true;
-                }
                 else
-                {
                     success = await DownloadPageWithCdnRotation(
                         syncClient, pagePath, fullFilePath, galleryId, i, total, cancellationToken);
-                }
 
                 if (success)
                 {
@@ -267,10 +266,6 @@ public class Syncronizer : BackgroundService
         }
     }
 
-    /// <summary>
-    /// Tries to download a single page, rotating through CDN pool on failures.
-    /// Each CDN gets one attempt — on failure it goes into cooldown and we try the next.
-    /// </summary>
     private async Task<bool> DownloadPageWithCdnRotation(
         SyncClient syncClient,
         string pagePath,
@@ -280,8 +275,6 @@ public class Syncronizer : BackgroundService
         int totalPages,
         CancellationToken cancellationToken)
     {
-        // We try each CDN at most once per page — avoid infinite loops
-        // by limiting attempts to the number of CDNs (tracked inside CdnPool)
         const int maxAttempts = 5;
 
         for (int attempt = 0; attempt < maxAttempts; attempt++)
@@ -412,6 +405,10 @@ public class Syncronizer : BackgroundService
 
         await db.SaveChangesAsync();
     }
+
+    // ---------------------------------------------------------------------------
+    // Backups
+    // ---------------------------------------------------------------------------
 
     private async Task SaveGalleryBackups(NhDbContext db, CancellationToken cancellationToken)
     {

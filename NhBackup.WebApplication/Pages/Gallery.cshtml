@@ -62,18 +62,19 @@
                  onerror="this.src='https://via.placeholder.com/300x400?text=No+Cover'"
                  style="height: 300px; object-fit: cover;">
             <div class="card-body">
-                <h5>@Model.Gallery.EnglishTitle</h5>
 
-                @if (!string.IsNullOrEmpty(Model.Gallery.JapaneseTitle))
-                {
-                    <p class="text-muted">@Model.Gallery.JapaneseTitle</p>
-                }
-
+                <a style="text-decoration: none;" href="https://nhentai.net/g/@Model.Gallery.Id/" target="_blank" title="Open on nhentai: https://nhentai.net/g/@Model.Gallery.Id/">
+                    <h5>@Model.Gallery.EnglishTitle</h5>
+                    @if (!string.IsNullOrEmpty(Model.Gallery.JapaneseTitle))
+                    {
+                        <p class="text-muted">@Model.Gallery.JapaneseTitle</p>
+                    }
+                </a>
                 <!-- Favorite button -->
                 <div class="d-grid gap-2 mb-3">
-                    <button id="favoriteBtn" class="btn @(Model.Gallery.IsFavorite ? "btn-warning" : "btn-outline-warning")">
-                        <i class="bi @(Model.Gallery.IsFavorite ? "bi-star-fill" : "bi-star")"></i>
-                        @(Model.Gallery.IsFavorite ? "In Favorites" : "Add to Favorites")
+                    <button id="favoriteBtn" class="btn @(Model.Gallery.Meta?.IsFavorite == true ? "btn-warning" : "btn-outline-warning")">
+                        <i class="bi @(Model.Gallery.Meta?.IsFavorite == true ? "bi-star-fill" : "bi-star")"></i>
+                        @(Model.Gallery.Meta?.IsFavorite == true ? "In Favorites" : "Add to Favorites")
                     </button>
                 </div>
 
