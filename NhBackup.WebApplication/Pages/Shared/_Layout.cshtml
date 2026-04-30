@@ -32,6 +32,7 @@
                     @if (User.Identity.IsAuthenticated)
                     {
                         <a class="nav-link" href="/Admin">Admin</a>
+                        <a class="nav-link" href="/InstallScript">Proxy CDN script</a>
                         <form method="post" asp-page="/Login" asp-page-handler="Logout" class="d-inline">
                             <button type="submit" class="btn nav-link" style="background: none; border: none;">Logout</button>
                         </form>
@@ -40,6 +41,7 @@
                     {
                         <a class="nav-link" href="/Login">Log in</a>
                     }
+                    
                     <select class="theme-select" id="themeSelect">
                         <option value="deepdark">Deep Dark</option>
                         <option value="dark">Dark</option>

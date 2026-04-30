@@ -1,0 +1,125 @@
+﻿@page
+@model NhBackup.WebApplication.Pages.InstallScriptModel
+@{
+    ViewData["Title"] = "Install Userscript";
+}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>nhentai Image Proxy</h4>
+                <small class="text-muted">Install userscript for your browser</small>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    A userscript that intercepts image requests on nhentai.net and serves them
+                    from your selfhosted server instead — reducing CDN load on nhentai and
+                    speeding up browsing for galleries you already have.
+                    Falls back to the original CDN if the file is not found on any of your servers.
+                </p>
+                <p class="text-muted small mb-3">
+                    Servers are checked in order — Primary is tried first, then each additional URL.
+                    To have a server set as Primary automatically, open this page from that server.
+                    You can also edit any URL manually below.
+                </p>
+
+                <div class="mb-4">
+                    <p class="text-muted small mb-2">
+                        Requires a userscript manager. Install one for your browser, then click Install below —
+                        the manager will intercept the <code>.user.js</code> link automatically.
+                    </p>
+                    <div class="mb-1 text-muted small fw-bold">Chrome / Edge / Opera / Brave</div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <a href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo"
+                           target="_blank" class="btn btn-outline-secondary btn-sm">Tampermonkey</a>
+                        <a href="https://chromewebstore.google.com/detail/violentmonkey/jinjaccalgkegedbjcdgranbkcoieca"
+                           target="_blank" class="btn btn-outline-secondary btn-sm">Violentmonkey</a>
+                    </div>
+                    <div class="mb-1 text-muted small fw-bold">Firefox</div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <a href="https://addons.mozilla.org/firefox/addon/tampermonkey/"
+                           target="_blank" class="btn btn-outline-secondary btn-sm">Tampermonkey</a>
+                        <a href="https://addons.mozilla.org/firefox/addon/violentmonkey/"
+                           target="_blank" class="btn btn-outline-secondary btn-sm">Violentmonkey</a>
+                        <a href="https://addons.mozilla.org/firefox/addon/greasemonkey/"
+                           target="_blank" class="btn btn-outline-secondary btn-sm">Greasemonkey</a>
+                    </div>
+                    <div class="mb-1 text-muted small fw-bold">Safari</div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="https://apps.apple.com/app/tampermonkey/id1482490089"
+                           target="_blank" class="btn btn-outline-secondary btn-sm">Tampermonkey</a>
+                    </div>
+                </div>
+
+                <hr class="my-3" />
+
+                <div id="urlList" class="mb-3"></div>
+
+                <button type="button" class="btn btn-outline-secondary btn-sm mb-4" onclick="addUrl()">
+                    + Add URL
+                </button>
+
+                <div class="d-grid">
+                    <a id="installBtn" class="btn btn-primary" href="#">
+                        ⬇ Install Userscript
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const primaryUrl = '@Model.PrimaryBaseUrl';
+        const urls = [primaryUrl];
+
+        function render() {
+            const list = document.getElementById('urlList');
+            list.innerHTML = '';
+            urls.forEach((url, i) => {
+                const isPrimary = i === 0;
+                const row = document.createElement('div');
+                row.className = 'input-group mb-2';
+                row.innerHTML = `
+                    <span class="input-group-text" style="width:80px">${isPrimary ? 'Primary' : `#${i + 1}`}</span>
+                    <input type="url" class="form-control url-input"
+                           value="${url}"
+                           placeholder="https://..." />
+                    ${!isPrimary ? `<button class="btn btn-outline-danger" type="button" onclick="removeUrl(${i})">✕</button>` : ''}
+                `;
+                list.appendChild(row);
+            });
+            updateInstallLink();
+        }
+
+        function addUrl() {
+            urls.push('https://');
+            render();
+            const inputs = document.querySelectorAll('.url-input');
+            const last = inputs[inputs.length - 1];
+            last.focus();
+            last.select();
+        }
+
+        function removeUrl(i) {
+            urls.splice(i, 1);
+            render();
+        }
+
+        function updateInstallLink() {
+            document.querySelectorAll('.url-input').forEach((inp, i) => {
+                urls[i] = inp.value;
+            });
+            const valid = urls.filter(u => u && u.startsWith('http'));
+            const encoded = encodeURIComponent(JSON.stringify(valid));
+            document.getElementById('installBtn').href = `/nhentai-proxy.user.js?urls=${encoded}`;
+        }
+
+        document.addEventListener('input', e => {
+            if (e.target.classList.contains('url-input')) updateInstallLink();
+        });
+
+        render();
+    </script>
+}
