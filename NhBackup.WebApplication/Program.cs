@@ -83,7 +83,7 @@ internal class Program
                 options.LoginPath = "/Login";
                 options.AccessDeniedPath = "/Login";
             });
-
+        builder.Services.AddHealthChecks();
         var app = builder.Build();
 
         if (!app.Environment.IsDevelopment())
@@ -109,6 +109,7 @@ internal class Program
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapRazorPages();
+        app.MapHealthChecks("/healthz");
 
         // Favorite toggle — works via GalleryMeta
         app.MapPost("/api/favorite/toggle/{id}", async (int id, NhDbContext db) =>
