@@ -7,14 +7,14 @@ namespace NhBackup.WebApplication.Db
 {
     public class NhDbContext : DbContext
     {
-        private DatabaseOptions _options;
+        private NhSyncronizerOptions _options;
 
         public DbSet<Gallery> Galleries { get; set; }
         public DbSet<GalleryMeta> GalleryMetas { get; set; }
         public DbSet<Tag> Tags { get; set; }
         public DbSet<GalleryTag> GalleryTags { get; set; }
 
-        public NhDbContext(IOptions<DatabaseOptions> options)
+        public NhDbContext(IOptions<NhSyncronizerOptions> options)
         {
             _options = options.Value;
         }

@@ -32,11 +32,6 @@ internal class Program
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        builder.Services.AddOptions<DatabaseOptions>()
-            .Bind(builder.Configuration)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
         builder.Services.AddDbContext<NhDbContext>();
 
         builder.Services.AddSingleton<ApiRateLimitStateStore>();
@@ -95,7 +90,7 @@ internal class Program
         app.UseHttpsRedirection();
         app.UseStaticFiles();
 
-        var dbOptions = app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+        var dbOptions = app.Services.GetRequiredService<IOptions<NhSyncronizerOptions>>().Value;
         var downloadsPath = Path.Combine(dbOptions.DataFolder, "downloads");
         Directory.CreateDirectory(downloadsPath);
 

@@ -1,24 +1,14 @@
 ﻿services:
   nhbackup:
-    build:
-      context: .
-      dockerfile: NhBackup.WebApplication/Dockerfile
-    image: nhbackup:latest
+    image: sharpsalat/nhbackup:latest
     container_name: nhbackup
     restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
       - nhbackup-data:/data
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:8080
-      - ApiKey=${NH_API_KEY}
-      - AdminPassword=${NH_ADMIN_PASSWORD}
-      - Username=${NH_USERNAME}
-      - Password=${NH_PASSWORD}
-      - DataFolder=/data
-      - SyncIntevralHours=${NH_SYNC_INTERVAL_HOURS:-24}
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
       interval: 30s

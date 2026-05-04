@@ -5,13 +5,10 @@ namespace NhBackup.WebApplication.Options
     public class NhSyncronizerOptions
     {
         [Required]
-        public string Username { get; set; }
-
-        [Required]
-        public string Password { get; set; }
-
-        [Required]
         public string ApiKey { get; set; }
+
+        [Required]
+        public string AdminPassword { get; set; }
 
         public int SyncIntevralHours { get; set; } = 2;
 

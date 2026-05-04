@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication;
+п»їusing Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -17,14 +17,13 @@ namespace NhBackup.WebApplication.Pages
 
         private string _adminPassword;
 
-        public LoginModel(IOptions<DatabaseOptions> options)
+        public LoginModel(IOptions<NhSyncronizerOptions> options)
         {
             _adminPassword = options.Value.AdminPassword;
         }
 
         public void OnGet()
         {
-            // Если уже авторизован - перенаправляем на главную
             if (User.Identity.IsAuthenticated)
             {
                 RedirectToPage("/Index");
@@ -35,7 +34,6 @@ namespace NhBackup.WebApplication.Pages
         {
             if (Password == _adminPassword)
             {
-                // Создаем claims (данные пользователя)
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, "Admin"),
@@ -50,7 +48,7 @@ namespace NhBackup.WebApplication.Pages
                 return RedirectToPage("/Index");
             }
 
-            ErrorMessage = "Неверный пароль";
+            ErrorMessage = "Error occured";
             return Page();
         }
 
