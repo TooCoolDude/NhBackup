@@ -35,7 +35,7 @@ public class Syncronizer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        do
+        while (cancellationToken.IsCancellationRequested)
         {
             var sw = Stopwatch.StartNew();
             try
@@ -55,8 +55,8 @@ public class Syncronizer : BackgroundService
                     (int)sw.Elapsed.TotalMinutes,
                     sw.Elapsed.Seconds);
             }
+            await Task.Delay(TimeSpan.FromHours(_options.SyncIntevralHours), cancellationToken);
         }
-        while (await _timer.WaitForNextTickAsync(cancellationToken));
     }
 
     public async Task Syncronize(CancellationToken cancellationToken)
