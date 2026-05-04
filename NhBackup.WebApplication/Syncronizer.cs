@@ -18,7 +18,6 @@ public class Syncronizer : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<Syncronizer> _logger;
     private readonly CdnPool _cdnPool;
-    private readonly PeriodicTimer _timer;
 
     public Syncronizer(
         IOptions<NhSyncronizerOptions> options,
@@ -30,7 +29,6 @@ public class Syncronizer : BackgroundService
         _scopeFactory = scopeFactory;
         _logger = logger;
         _cdnPool = cdnPool;
-        _timer = new PeriodicTimer(TimeSpan.FromHours(_options.SyncIntevralHours));
     }
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
