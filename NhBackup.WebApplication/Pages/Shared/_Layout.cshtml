@@ -27,10 +27,10 @@
                 <a class="navbar-brand" href="/">NHentai Backup</a>
                 <div class="navbar-nav d-flex align-items-center gap-2">
                     <a class="nav-link" href="/">Home</a>
-                    <a class="nav-link" href="/Browse">Browse</a>
-                    <a class="nav-link" href="/Favorites">Favourites</a>
+                    <a class="nav-link" href="/Browse">Browse</a>            
                     @if (User.Identity.IsAuthenticated)
                     {
+                        <a class="nav-link" href="/Favorites">Favourites</a>
                         <a class="nav-link" href="/Admin">Admin</a>
                         <a class="nav-link" href="/InstallScript">Proxy CDN script</a>
                         <form method="post" asp-page="/Login" asp-page-handler="Logout" class="d-inline">
